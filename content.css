@@ -5,11 +5,10 @@
   animation: errorPulse 1.5s ease-in-out infinite !important;
   outline: 2px solid #ef4444 !important;
   outline-offset: 2px !important;
-  position: relative !important;
 }
 
 .ui-check-error::after {
-  content: '!';
+  content: none !important;
   position: absolute !important;
   top: -6px !important;
   right: -6px !important;
@@ -45,7 +44,7 @@
 }
 
 .ui-check-fixed::after {
-  content: '✓';
+  content: none !important;
   position: absolute !important;
   top: -6px !important;
   right: -6px !important;

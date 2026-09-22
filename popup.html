@@ -6,38 +6,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UI Consistency Checker</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,450,0,0" rel="stylesheet">
+  <link href="vendor/fontawesome/css/all.min.css" rel="stylesheet">
   <style>
     /* ========================================
        CSS VARIABLES - THEME SYSTEM
        ======================================== */
     :root {
       /* Primary Colors */
-      --primary: #6366f1;
-      --primary-dark: #4f46e5;
-      --primary-light: #818cf8;
-      --secondary: #06b6d4;
+      --primary: rgb(161 202 253);
+      --primary-dark: rgb(0 83 142);
+      --primary-light: rgb(210 228 255);
+      --secondary: rgb(139 208 239);
       --success: #10b981;
       --warning: #f59e0b;
       --error: #ef4444;
-      --info: #3b82f6;
+      --info: rgb(139 208 239);
 
       /* Dark Theme (Default) */
-      --bg: #0f172a;
-      --surface: #1e293b;
-      --surface-light: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --border: #334155;
-      --code-bg: #0d1117;
-      --code-border: #30363d;
-      --code-text: #e6edf3;
+      --bg: #15181d;
+      --surface: rgb(29 32 36);
+      --surface-light: rgb(50 53 58);
+      --text: rgb(225 226 232);
+      --text-muted: rgb(195 198 207);
+      --border: rgb(67 71 78);
+      --code-bg: rgb(11 14 19);
+      --code-border: rgb(67 71 78);
+      --code-text: rgb(225 226 232);
 
       /* Gradients */
-      --gradient-1: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-      --gradient-2: linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%);
-      --gradient-3: linear-gradient(135deg, #10b981 0%, #06b6d4 100%);
-      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
+      --gradient-1: #00538e;
+      --gradient-2: #00538e;
+      --gradient-3: #00538e;
+      --shadow-glow: 0 0 20px rgba(0, 83, 142, 0.22);
 
       /* Transitions */
       --theme-transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
@@ -45,16 +46,20 @@
 
     /* Light Theme Variables */
     body[data-theme="light"] {
-      --bg: #f8fafc;
+      --primary: #00538e;
+      --primary-dark: #004c7d;
+      --primary-light: #007bad;
+      --secondary: #535f70;
+      --bg: #f8f9ff;
       --surface: #ffffff;
-      --surface-light: #f1f5f9;
-      --text: #1e293b;
+      --surface-light: #f2f3fa;
+      --text: #212529;
       --text-muted: #64748b;
-      --border: #e2e8f0;
-      --code-bg: #f8fafc;
-      --code-border: #e2e8f0;
-      --code-text: #1e293b;
-      --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.2);
+      --border: #c3c6cf;
+      --code-bg: #f2f3fa;
+      --code-border: #c3c6cf;
+      --code-text: #212529;
+      --shadow-glow: 0 0 20px rgba(0, 83, 142, 0.14);
     }
 
     * {
@@ -294,8 +299,8 @@
        RUN CHECK NOTICE
        ======================================== */
     .run-check-notice {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
-      border: 1px solid rgba(99, 102, 241, 0.3);
+      background: rgba(0, 83, 142, 0.1);
+      border: 1px solid rgba(0, 83, 142, 0.3);
       padding: 10px 12px;
       border-radius: 10px;
       margin-bottom: 10px;
@@ -308,7 +313,7 @@
     }
 
     body[data-theme="light"] .run-check-notice {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+      background: rgba(0, 83, 142, 0.05);
     }
 
     .run-check-notice .material-icons {
@@ -405,11 +410,11 @@
        RUN CHECK RESULTS (Collapsible)
        ======================================== */
     .results-section .collapsible-header {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+      background: rgba(0, 83, 142, 0.1);
     }
 
     body[data-theme="light"] .results-section .collapsible-header {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+      background: rgba(0, 83, 142, 0.05);
     }
 
     .results-section .collapsible-header h3 {
@@ -432,11 +437,11 @@
        AUTO FIX RESULTS (Collapsible)
        ======================================== */
     .fix-section .collapsible-header {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 182, 212, 0.1) 100%);
+      background: rgba(0, 83, 142, 0.1);
     }
 
     body[data-theme="light"] .fix-section .collapsible-header {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(6, 182, 212, 0.05) 100%);
+      background: rgba(0, 83, 142, 0.05);
     }
 
     .fix-section .collapsible-header h3 {
@@ -1028,7 +1033,7 @@
     .form-group textarea:focus {
       outline: none;
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      box-shadow: 0 0 0 3px rgba(0, 83, 142, 0.12);
     }
 
     .form-group textarea {
@@ -1103,37 +1108,6 @@
 
     .modal-btn-secondary:hover {
       background: var(--surface-light);
-    }
-
-    /* View HTML Modal */
-    .view-html-modal .modal-content {
-      width: 340px;
-    }
-
-    .html-code-container {
-      background: var(--code-bg);
-      border-radius: 8px;
-      padding: 12px;
-      margin: 12px 16px;
-      max-height: 250px;
-      overflow: auto;
-      border: 1px solid var(--code-border);
-      transition: var(--theme-transition);
-    }
-
-    .html-code-container pre {
-      color: var(--code-text);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 10px;
-      line-height: 1.5;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      margin: 0;
-    }
-
-    .html-actions {
-      display: flex;
-      gap: 8px;
     }
 
     /* Empty State */
@@ -1212,7 +1186,7 @@
     }
 
     .apply-grid-btn:hover {
-      box-shadow: 0 0 12px rgba(6, 182, 212, 0.4);
+      box-shadow: 0 0 12px rgba(0, 169, 215, 0.35);
     }
 
     .apply-grid-btn .material-icons {
@@ -1300,7 +1274,7 @@
 
     .quality-header {
       padding: 12px 14px;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%);
+      background: rgba(0, 83, 142, 0.1);
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
@@ -1310,11 +1284,11 @@
     }
 
     body[data-theme="light"] .quality-header {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, rgba(139, 92, 246, 0.05) 100%);
+      background: rgba(0, 83, 142, 0.05);
     }
 
     .quality-header:hover {
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+      background: rgba(0, 83, 142, 0.15);
     }
 
     .quality-header h3 {
@@ -1346,8 +1320,8 @@
 
     /* Lighthouse Note */
     .lighthouse-note {
-      background: linear-gradient(135deg, rgba(6, 182, 212, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%);
-      border: 1px solid rgba(6, 182, 212, 0.3);
+      background: rgba(0, 83, 142, 0.1);
+      border: 1px solid rgba(0, 169, 215, 0.3);
       padding: 10px 12px;
       border-radius: 8px;
       margin: 12px;
@@ -1357,7 +1331,7 @@
     }
 
     body[data-theme="light"] .lighthouse-note {
-      background: linear-gradient(135deg, rgba(6, 182, 212, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%);
+      background: rgba(0, 83, 142, 0.05);
     }
 
     .lighthouse-note strong {
@@ -1424,6 +1398,753 @@
       line-height: 1.4;
     }
 
+    /* ========================================
+       NATIVE SIDE PANEL / HAKEEM GLASS UI
+       ======================================== */
+    html {
+      min-width: 280px;
+      min-height: 100%;
+      background: #15181d;
+    }
+
+    body {
+      --primary: rgb(161 202 253);
+      --primary-dark: rgb(0 83 142);
+      --primary-light: rgb(210 228 255);
+      --secondary: rgb(139 208 239);
+      --bg: #15181d;
+      --surface: rgba(29, 32, 36, 0.84);
+      --surface-light: rgba(50, 53, 58, 0.78);
+      --text: rgb(225 226 232);
+      --text-muted: rgb(195 198 207);
+      --border: rgba(141, 145, 153, 0.28);
+      --code-bg: rgba(11, 14, 19, 0.9);
+      --code-border: rgba(67, 71, 78, 0.9);
+      --code-text: rgb(225 226 232);
+      --gradient-1: #00538e;
+      --gradient-2: #00538e;
+      --gradient-3: #00538e;
+      --glass-highlight: rgba(255, 255, 255, 0.045);
+      --glass-shadow: 0 8px 24px rgba(0, 0, 0, 0.22), inset 0 1px 0 var(--glass-highlight);
+      width: 100vw;
+      max-width: 100vw;
+      min-width: 280px;
+      min-height: 100vh;
+      height: 100vh;
+      max-height: none;
+      padding: 14px;
+      position: relative;
+      overflow-x: hidden;
+      overflow-y: auto;
+      font-family: "Roboto", "Almarai", "Helvetica", "Arial", sans-serif;
+      background: var(--bg);
+      background-attachment: fixed;
+    }
+
+    body[data-theme="light"] {
+      --primary: #00538e;
+      --primary-dark: #004c7d;
+      --primary-light: #007bad;
+      --secondary: #535f70;
+      --bg: #f8f9ff;
+      --surface: rgba(255, 255, 255, 0.86);
+      --surface-light: rgba(242, 243, 250, 0.9);
+      --text: #212529;
+      --text-muted: #64748b;
+      --border: rgba(115, 119, 127, 0.28);
+      --code-bg: rgba(242, 243, 250, 0.92);
+      --code-border: rgba(195, 198, 207, 0.9);
+      --code-text: #212529;
+      --glass-highlight: rgba(255, 255, 255, 0.76);
+      --glass-shadow: 0 8px 24px rgba(17, 20, 24, 0.08), inset 0 1px 0 var(--glass-highlight);
+      background: var(--bg);
+    }
+
+    body::before,
+    .header::after {
+      display: none;
+    }
+
+    .header,
+    .tab-navigation,
+    .action-btn,
+    .grid-settings,
+    .collapsible-section,
+    .quality-section,
+    .saved-components,
+    .run-check-notice,
+    .import-export-section,
+    .footer {
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: var(--glass-shadow);
+      -webkit-backdrop-filter: blur(14px) saturate(115%);
+      backdrop-filter: blur(14px) saturate(115%);
+    }
+
+    .header {
+      padding: 14px 15px;
+      border-radius: 9px;
+      overflow: hidden;
+    }
+
+    .header-content {
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .header-content > div:first-child {
+      flex: 1 1 auto;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .header h1 {
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .header::before {
+      height: 2px;
+      opacity: 1;
+      background: var(--primary-dark);
+    }
+
+    body[data-panel-side="left"] .header::before {
+      background: var(--primary-dark);
+    }
+
+    .header h1 .material-icons {
+      background: none;
+      -webkit-background-clip: text;
+      background-clip: text;
+    }
+
+    .theme-toggle {
+      flex: 0 0 auto;
+      margin-left: auto;
+      gap: 3px;
+      padding: 3px;
+      border-radius: 7px;
+      background: rgba(11, 14, 19, 0.52);
+      border-color: var(--border);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+    }
+
+    .theme-toggle-btn {
+      border-radius: 5px;
+    }
+
+    .tab-navigation {
+      padding: 4px;
+      border-radius: 8px;
+    }
+
+    .tab-btn {
+      min-width: 0;
+      min-height: 38px;
+      border-radius: 5px;
+    }
+
+    .tab-btn.active,
+    .theme-toggle-btn.active {
+      box-shadow: 0 5px 14px rgba(0, 83, 142, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    }
+
+    .tab-btn.active .material-icons,
+    .tab-btn.active .tab-label {
+      position: relative;
+      z-index: 1;
+      opacity: 1;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+
+    body[data-theme="light"] .tab-btn.active,
+    body[data-theme="light"] .tab-btn.active .material-icons,
+    body[data-theme="light"] .tab-btn.active .tab-label {
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .component-preview pre,
+    .quality-metric,
+    .tip-item,
+    .fix-code,
+    .grid-size-input-group input {
+      background: rgba(11, 14, 19, 0.48);
+      border-color: var(--border);
+      border-radius: 6px;
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+    }
+
+    body[data-theme="light"] .theme-toggle,
+    body[data-theme="light"] .form-group input,
+    body[data-theme="light"] .form-group textarea,
+    body[data-theme="light"] .component-preview pre,
+    body[data-theme="light"] .quality-metric,
+    body[data-theme="light"] .tip-item,
+    body[data-theme="light"] .fix-code,
+    body[data-theme="light"] .grid-size-input-group input {
+      background: rgba(255, 255, 255, 0.72);
+    }
+
+    .action-btn,
+    .ie-btn,
+    .modal-btn {
+      min-height: 42px;
+      border-radius: 6px;
+    }
+
+    .action-btn:hover,
+    .ie-btn:hover {
+      border-color: rgba(0, 169, 215, 0.62);
+      box-shadow: 0 7px 18px rgba(0, 29, 54, 0.18), inset 0 1px 0 var(--glass-highlight);
+    }
+
+    .grid-settings,
+    .run-check-notice,
+    .import-export-section {
+      border-radius: 8px;
+    }
+
+    .collapsible-section,
+    .quality-section,
+    .saved-components {
+      border-radius: 9px;
+    }
+
+    .collapsible-header,
+    .quality-header,
+    .saved-components-header {
+      min-height: 48px;
+      background: rgba(0, 83, 142, 0.1);
+    }
+
+    .result-item,
+    .saved-component,
+    .fix-item,
+    .stat {
+      background: rgba(255, 255, 255, 0.035);
+      border-color: var(--border);
+      border-radius: 6px;
+    }
+
+    body[data-theme="light"] .result-item,
+    body[data-theme="light"] .saved-component,
+    body[data-theme="light"] .fix-item,
+    body[data-theme="light"] .stat {
+      background: rgba(255, 255, 255, 0.64);
+    }
+
+    .modal {
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.58);
+      -webkit-backdrop-filter: blur(16px) saturate(115%);
+      backdrop-filter: blur(16px) saturate(115%);
+    }
+
+    .modal-content {
+      width: min(100%, 520px);
+      max-height: calc(100vh - 28px);
+      border-radius: 10px;
+      background: var(--surface);
+      border-color: var(--border);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.38), inset 0 1px 0 var(--glass-highlight);
+      -webkit-backdrop-filter: blur(22px) saturate(120%);
+      backdrop-filter: blur(22px) saturate(120%);
+    }
+
+    .modal-header {
+      background: rgba(11, 14, 19, 0.42);
+    }
+
+    .modal-close,
+    .icon-btn {
+      border-radius: 6px;
+    }
+
+    body[data-theme="light"] .modal-header {
+      background: rgba(242, 243, 250, 0.76);
+    }
+
+    @media (min-width: 520px) {
+      body {
+        padding: 18px;
+      }
+
+      .header,
+      .tab-navigation,
+      .tab-content {
+        max-width: 720px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
+
+    @media (max-width: 330px) {
+      body {
+        padding: 10px;
+      }
+
+      .header p {
+        display: none;
+      }
+    }
+
+    /* ========================================
+       AI DESIGN STUDIO
+       ======================================== */
+    .ai-studio {
+      display: grid;
+      gap: 10px;
+    }
+
+    .ai-card,
+    .ai-response-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      box-shadow: var(--glass-shadow);
+      -webkit-backdrop-filter: blur(14px) saturate(115%);
+      backdrop-filter: blur(14px) saturate(115%);
+    }
+
+    .ai-card {
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .ai-accordion-header {
+      width: 100%;
+      min-height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 11px 13px;
+      border: 0;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      background: rgba(0, 83, 142, 0.1);
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .ai-accordion-header > span:first-child {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .ai-accordion-header .material-icons {
+      color: var(--primary);
+      font-size: 17px;
+    }
+
+    .ai-accordion-header .collapse-icon {
+      color: var(--text-muted);
+      transition: transform 0.2s ease;
+    }
+
+    .ai-accordion-header[aria-expanded="false"] {
+      border-bottom-color: transparent;
+    }
+
+    .ai-accordion-content {
+      padding: 12px;
+    }
+
+    .ai-accordion-content[hidden] {
+      display: none;
+    }
+
+    .ai-provider-switch {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 4px;
+      padding: 4px;
+      margin-bottom: 11px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: rgba(11, 14, 19, 0.38);
+    }
+
+    body[data-theme="light"] .ai-provider-switch {
+      background: rgba(242, 243, 250, 0.8);
+    }
+
+    .ai-provider-btn,
+    .ai-chip,
+    .ai-secondary-btn,
+    .ai-icon-btn,
+    .ai-refresh-models-btn {
+      border: 1px solid transparent;
+      border-radius: 5px;
+      color: var(--text-muted);
+      background: transparent;
+      font: inherit;
+      cursor: pointer;
+      transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+    }
+
+    .ai-provider-btn {
+      min-height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+      padding-inline: 5px;
+      font-size: 10px;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ai-provider-btn.active {
+      color: #fff;
+      background: var(--gradient-1);
+      box-shadow: 0 4px 12px rgba(0, 83, 142, 0.22);
+    }
+
+    .ai-field {
+      margin-top: 10px;
+    }
+
+    .ai-model-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .ai-model-label label {
+      margin: 0;
+    }
+
+    .ai-refresh-models-btn {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 6px;
+      border-color: var(--border);
+      font-size: 9px;
+    }
+
+    .ai-refresh-models-btn .material-icons {
+      font-size: 13px;
+    }
+
+    .ai-refresh-models-btn .is-spinning {
+      animation: spin 0.8s linear infinite;
+    }
+
+    .ai-custom-model {
+      margin-top: 6px;
+    }
+
+    .ai-field label,
+    .ai-field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .ai-input,
+    .ai-textarea {
+      width: 100%;
+      color: var(--text);
+      background: rgba(11, 14, 19, 0.48);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 10px;
+      font: inherit;
+      font-size: 11px;
+      outline: none;
+      transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+
+    body[data-theme="light"] .ai-input,
+    body[data-theme="light"] .ai-textarea {
+      background: rgba(255, 255, 255, 0.76);
+    }
+
+    .ai-input:focus,
+    .ai-textarea:focus {
+      border-color: #007bad;
+      box-shadow: 0 0 0 3px rgba(0, 83, 142, 0.12);
+    }
+
+    .ai-key-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 36px;
+      gap: 6px;
+    }
+
+    .ai-icon-btn {
+      display: grid;
+      place-items: center;
+      border-color: var(--border);
+      background: var(--surface-light);
+    }
+
+    .ai-icon-btn .material-icons {
+      font-size: 17px;
+    }
+
+    .ai-help {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .ai-help strong {
+      color: var(--text);
+    }
+
+    .ai-help a {
+      color: var(--secondary);
+      text-decoration: none;
+    }
+
+    .ai-help a:hover {
+      text-decoration: underline;
+    }
+
+    .ai-help.ai-warning {
+      color: var(--warning);
+    }
+
+    .ai-quick-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .ai-chip {
+      padding: 6px 8px;
+      border-color: var(--border);
+      background: rgba(0, 83, 142, 0.06);
+      font-size: 10px;
+    }
+
+    .ai-chip:hover,
+    .ai-secondary-btn:hover,
+    .ai-icon-btn:hover,
+    .ai-refresh-models-btn:hover {
+      color: var(--text);
+      border-color: rgba(0, 169, 215, 0.55);
+      background: rgba(0, 83, 142, 0.12);
+    }
+
+    .ai-textarea {
+      min-height: 104px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .ai-context-line {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 9px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: rgba(0, 83, 142, 0.055);
+    }
+
+    .ai-context-line > .material-icons {
+      color: var(--secondary);
+      font-size: 17px;
+    }
+
+    .ai-context-title {
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ai-context-meta {
+      margin-top: 2px;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.4;
+    }
+
+    .ai-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin-top: 9px;
+      color: var(--text-muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .ai-checkbox input {
+      accent-color: #007bad;
+    }
+
+    .ai-privacy-note {
+      display: flex;
+      gap: 7px;
+      margin-top: 9px;
+      color: var(--text-muted);
+      font-size: 9px;
+      line-height: 1.45;
+    }
+
+    .ai-privacy-note .material-icons {
+      flex: 0 0 auto;
+      color: var(--primary);
+      font-size: 14px;
+    }
+
+    .ai-run-btn {
+      width: 100%;
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 0;
+      border-radius: 6px;
+      color: #fff;
+      background: var(--gradient-1);
+      box-shadow: 0 6px 18px rgba(0, 83, 142, 0.24);
+      font: inherit;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .ai-run-btn:disabled,
+    .ai-secondary-btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .ai-run-btn .material-icons {
+      font-size: 17px;
+    }
+
+    .ai-run-btn.is-loading .material-icons {
+      animation: spin 0.9s linear infinite;
+    }
+
+    .ai-status {
+      min-height: 16px;
+      margin-top: 7px;
+      color: var(--text-muted);
+      font-size: 10px;
+      text-align: center;
+    }
+
+    .ai-status.error {
+      color: var(--error);
+    }
+
+    .ai-response-card {
+      overflow: hidden;
+    }
+
+    .ai-response-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0, 83, 142, 0.1);
+    }
+
+    .ai-response-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .ai-response-title .material-icons {
+      color: var(--secondary);
+      font-size: 17px;
+    }
+
+    .ai-response-meta {
+      color: var(--text-muted);
+      font-size: 9px;
+      text-align: right;
+    }
+
+    .ai-response-output {
+      max-height: 440px;
+      overflow: auto;
+      padding: 12px;
+      color: var(--text);
+      font-family: "Roboto", "Almarai", "Helvetica", "Arial", sans-serif;
+      font-size: 11px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      user-select: text;
+    }
+
+    .ai-response-actions {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    .ai-secondary-btn {
+      min-height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      padding: 6px;
+      border-color: var(--border);
+      background: var(--surface-light);
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .ai-secondary-btn .material-icons {
+      font-size: 14px;
+    }
+
+    @media (max-width: 360px) {
+      .tab-btn {
+        padding-inline: 5px;
+        font-size: 10px;
+      }
+
+      .ai-response-actions {
+        grid-template-columns: 1fr;
+      }
+    }
+
 
     /* ========================================
        SCROLLBAR
@@ -1444,6 +2165,205 @@
     ::-webkit-scrollbar-thumb:hover {
       background: var(--surface-light);
     }
+    /* AI browser companion */
+    #aiTab.active { min-height: calc(100vh - 178px); }
+    .ai-chat-shell { position: relative; min-height: calc(100vh - 178px); display: grid; grid-template-rows: auto minmax(260px, 1fr) auto auto auto; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: rgba(17,20,24,.56); box-shadow: var(--glass-shadow); backdrop-filter: blur(18px) saturate(120%); }
+    .ai-chat-shell[hidden] { display: none; }
+    body[data-theme="light"] .ai-chat-shell { background: rgba(255,255,255,.7); }
+    .ai-chat-toolbar { min-height: 48px; display: grid; grid-template-columns: 36px minmax(0,1fr) 36px 36px; align-items: center; gap: 5px; padding: 6px 8px; border-bottom: 1px solid var(--border); background: rgba(0,83,142,.12); }
+    .ai-toolbar-btn { width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border: 1px solid transparent; border-radius: 5px; color: var(--text-muted); background: transparent; cursor: pointer; }
+    .ai-toolbar-btn:hover, .ai-toolbar-btn:focus-visible { color: var(--text); border-color: var(--border); background: var(--surface-light); }
+    .ai-toolbar-btn .material-icons { font-size: 18px; }
+    .ai-conversation-title { min-width: 0; padding: 7px 8px; border: 0; color: var(--text); background: transparent; font: inherit; font-size: 12px; font-weight: 700; text-align: start; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+    .ai-history-panel, .ai-settings-panel { position: absolute; inset: 49px 0 0; z-index: 12; overflow: auto; padding: 10px; background: color-mix(in srgb, var(--background) 94%, transparent); backdrop-filter: blur(20px); animation: aiPanelIn .18s ease-out; }
+    .ai-history-panel[hidden], .ai-settings-panel[hidden] { display: none; }
+    @keyframes aiPanelIn { from { opacity: 0; transform: translateY(-5px); } }
+    .ai-history-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .ai-history-list { display: grid; gap: 5px; }
+    .ai-history-item { display: grid; grid-template-columns: minmax(0,1fr) 30px 30px; gap: 3px; align-items: center; padding: 5px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); }
+    .ai-history-item.active { border-color: rgba(90,202,246,.55); background: rgba(0,83,142,.12); }
+    .ai-history-open { min-width: 0; padding: 6px; border: 0; color: var(--text); background: transparent; text-align: start; cursor: pointer; }
+    .ai-history-open strong, .ai-history-open small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-history-open strong { font-size: 11px; } .ai-history-open small { margin-top: 2px; color: var(--text-muted); font-size: 9px; }
+    .ai-settings-panel { display: grid; align-content: start; gap: 9px; }
+    .ai-global-screen { min-height: calc(100vh - 178px); border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: rgba(17,20,24,.72); box-shadow: var(--glass-shadow); backdrop-filter: blur(18px) saturate(120%); }
+    body[data-theme="light"] .ai-global-screen { background: rgba(255,255,255,.78); }
+    .ai-global-screen[hidden] { display: none; }
+    .ai-screen-header { min-height: 54px; display: grid; grid-template-columns: 38px minmax(0,1fr) 38px; align-items: center; gap: 7px; padding: 7px 10px; border-bottom: 1px solid var(--border); background: rgba(0,83,142,.12); }
+    .ai-screen-header strong, .ai-screen-header small { display: block; } .ai-screen-header strong { font-size: 13px; } .ai-screen-header small { margin-top: 2px; color: var(--text-muted); font-size: 9px; }
+    .ai-history-screen .ai-history-list { padding: 10px; }
+    .ai-settings-screen { max-height: calc(100vh - 178px); overflow-y: auto; }
+    .ai-settings-group { margin: 10px; padding: 12px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+    .ai-settings-group h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 10px; color: var(--text); font-size: 11px; }
+    .ai-settings-group h3 .material-icons { color: var(--secondary); font-size: 17px; }
+    .ai-settings-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+    .ai-setting-switches { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2px 10px; margin-block: 8px; }
+    .ai-settings-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; margin-top: 10px; }
+    .ai-settings-actions .ai-save-connection-btn, .ai-settings-actions .ai-danger-btn { margin-top: 0; }
+    .ai-connection-status { min-height: 28px; display: flex; align-items: center; margin-top: 9px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); background: rgba(0,83,142,.05); font-size: 9px; }
+    .ai-connection-status.success { color: var(--secondary); border-color: rgba(90,202,246,.45); } .ai-connection-status.error { color: var(--error); }
+    .ai-config-notice { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 8px 6px; padding: 7px 8px; border: 1px solid rgba(139,208,239,.35); border-radius: 6px; color: var(--text-muted); background: rgba(0,83,142,.1); font-size: 9px; }
+    .ai-config-notice[hidden] { display: none; } .ai-config-notice button { flex: 0 0 auto; padding: 5px 7px; border: 0; border-radius: 4px; color: #fff; background: var(--primary-dark); font: inherit; font-weight: 700; cursor: pointer; }
+    .ai-danger-btn { width: 100%; margin-top: 12px; padding: 8px; border: 1px solid color-mix(in srgb, var(--error) 45%, transparent); border-radius: 5px; color: var(--error); background: transparent; font: inherit; font-size: 10px; cursor: pointer; }
+    .ai-save-connection-btn { width: 100%; min-height: 40px; display: flex; align-items: center; justify-content: center; gap: 7px; margin-top: 12px; padding: 8px 10px; border: 0; border-radius: 6px; color: #fff; background: var(--gradient-1); box-shadow: 0 6px 18px rgba(0,83,142,.22); font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+    .ai-save-connection-btn:disabled { opacity: .55; cursor: wait; }
+    .ai-save-connection-btn .material-icons { font-size: 16px; }
+    .ai-save-connection-btn .is-spinning { animation: spin .8s linear infinite; }
+    .ai-message-list { min-height: 260px; max-height: calc(100vh - 385px); overflow: auto; padding: 14px 11px; scroll-behavior: smooth; }
+    .ai-empty-state { min-height: 250px; display: grid; place-content: center; justify-items: center; gap: 7px; padding: 18px; color: var(--text-muted); text-align: center; }
+    .ai-empty-state > .material-icons { color: var(--secondary); font-size: 29px; } .ai-empty-state h3 { margin: 0; color: var(--text); font-size: 15px; } .ai-empty-state p { max-width: 300px; margin: 0; font-size: 10px; line-height: 1.55; }
+    .ai-empty-prompts { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; margin-top: 7px; }
+    .ai-empty-prompts button { padding: 6px 8px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); background: var(--surface); font: inherit; font-size: 9px; cursor: pointer; }
+    .ai-message { display: flex; margin: 0 0 12px; }
+    .ai-message.user { justify-content: flex-end; }
+    .ai-message-bubble { position: relative; max-width: 91%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; color: var(--text); background: var(--surface); font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; user-select: text; }
+    body[data-chat-font="small"] .ai-message-bubble { font-size: 10px; }
+    body[data-chat-font="large"] .ai-message-bubble { font-size: 13px; }
+    body[data-reduce-motion="true"] *, body[data-reduce-motion="true"] *::before, body[data-reduce-motion="true"] *::after { scroll-behavior: auto !important; animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+    .theme-toggle { display: flex; }
+    .ai-message.user .ai-message-bubble { color: #fff; border-color: rgba(90,202,246,.2); background: rgba(0,83,142,.92); border-end-end-radius: 3px; white-space: pre-wrap; }
+    .ai-message.user .ai-message-content,
+    .ai-message.user .ai-message-content *,
+    .ai-message.user .ai-message-meta { color: #fff; }
+    .ai-message.user .ai-message-meta { opacity: .78; }
+    .ai-message.assistant .ai-message-bubble { color: var(--text); border-start-start-radius: 3px; }
+    .ai-message.assistant .ai-message-content,
+    .ai-message.assistant .ai-message-content p,
+    .ai-message.assistant .ai-message-content li,
+    .ai-message.assistant .ai-message-content h1,
+    .ai-message.assistant .ai-message-content h2,
+    .ai-message.assistant .ai-message-content h3 { color: var(--text); }
+    .ai-message.error .ai-message-bubble { border-color: color-mix(in srgb, var(--error) 50%, transparent); }
+    .ai-message-meta { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; color: color-mix(in srgb, var(--text) 72%, transparent); font-size: 8px; }
+    .ai-message-actions { display: flex; gap: 2px; margin-top: 7px; }
+    .ai-message-action { padding: 3px 6px; border: 0; border-radius: 4px; color: var(--text); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
+    .ai-message-action:disabled { opacity: .4; cursor: not-allowed; }
+    .ai-message-action:hover { color: var(--text); background: var(--surface-light); }
+    .ai-message-bubble p { margin: 0 0 8px; } .ai-message-bubble p:last-child { margin-bottom: 0; }
+    .ai-message-bubble h1, .ai-message-bubble h2, .ai-message-bubble h3 { margin: 10px 0 5px; font-size: 12px; }
+    .ai-message-bubble ul, .ai-message-bubble ol { margin: 6px 0; padding-inline-start: 20px; }
+    .ai-code-wrap { position: relative; margin: 8px 0; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; background: rgba(11,14,19,.76); direction: ltr; text-align: left; }
+    .ai-code-head { display: flex; justify-content: space-between; padding: 4px 7px; color: #d2e4ff; border-bottom: 1px solid var(--border); font-size: 8px; }
+    .ai-code-copy { border: 0; color: #fff; background: transparent; font: inherit; cursor: pointer; }
+    .ai-code-wrap pre { margin: 0; padding: 9px; overflow: auto; color: #d2e4ff; font: 10px/1.55 Consolas, monospace; white-space: pre; }
+    .ai-code-wrap .kw { color: #8bd0ef; } .ai-code-wrap .str { color: #a1cafd; } .ai-code-wrap .num { color: #ffb4ab; }
+    .ai-stream-cursor::after { content: ''; display: inline-block; width: 5px; height: 11px; margin-inline-start: 3px; background: var(--secondary); animation: aiBlink .8s steps(2) infinite; }
+    @keyframes aiBlink { 50% { opacity: 0; } }
+    .ai-chat-status { min-height: 17px; padding: 2px 10px; color: var(--text-muted); font-size: 9px; text-align: center; }
+    .ai-chat-status.error { color: var(--error); }
+    .ai-attachment-bar { display: grid; grid-template-columns: 20px minmax(0,1fr) 30px; align-items: center; gap: 5px; margin: 0 8px 6px; padding: 5px 6px; border: 1px solid rgba(90,202,246,.35); border-radius: 6px; background: rgba(0,83,142,.1); }
+    .ai-attachment-bar[hidden] { display: none; } .ai-attachment-bar > .material-icons { color: var(--secondary); font-size: 16px; } .ai-attachment-label { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-context-strip { display: flex; align-items: center; gap: 5px; padding: 0 8px 6px; }
+    .ai-context-pill, .ai-context-action { min-height: 27px; display: flex; align-items: center; gap: 4px; padding: 4px 7px; border: 1px solid var(--border); border-radius: 5px; color: var(--text-muted); background: var(--surface); font: inherit; font-size: 9px; cursor: pointer; }
+    .ai-context-pill { min-width: 0; margin-inline-end: auto; } .ai-context-pill.using { color: var(--secondary); border-color: rgba(90,202,246,.45); } .ai-context-pill .material-icons, .ai-context-action .material-icons { font-size: 14px; }
+    .ai-composer { display: grid; grid-template-columns: minmax(0,1fr) 34px; align-items: end; gap: 6px; margin: 0 8px 8px; padding: 6px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); }
+    .ai-composer:focus-within { border-color: rgba(90,202,246,.58); box-shadow: 0 0 0 3px rgba(0,83,142,.11); }
+    .ai-composer textarea { width: 100%; max-height: 150px; resize: none; padding: 5px; border: 0; outline: 0; color: var(--text); background: transparent; font: inherit; font-size: 11px; line-height: 1.45; }
+    .ai-send-btn, .ai-stop-btn { width: 32px; height: 32px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 6px; color: #fff; background: var(--gradient-1); cursor: pointer; }
+    .ai-send-btn[hidden], .ai-stop-btn[hidden] { display: none; }
+    .ai-send-btn:disabled { opacity: .4; cursor: not-allowed; } .ai-send-btn .material-icons, .ai-stop-btn .material-icons { font-size: 18px; }
+    .ai-stop-btn { background: var(--error); }
+    [dir="rtl"] .ai-message.user { justify-content: flex-start; } [dir="rtl"] .ai-message.assistant { justify-content: flex-end; }
+    @media (max-width: 440px) { .ai-context-action { padding-inline: 6px; font-size: 0; } .ai-context-action .material-icons { font-size: 15px; } .ai-settings-grid, .ai-setting-switches, .ai-settings-actions { grid-template-columns: 1fr; } }
+    @media (max-width: 360px) { .ai-chat-toolbar { grid-template-columns: 32px minmax(0,1fr) 32px 32px; padding-inline: 5px; } }
+
+    /* Unified Hakeem theme and icon system. */
+    .material-icons {
+      font-family: "Material Symbols Rounded";
+      font-weight: normal;
+      font-style: normal;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-feature-settings: "liga";
+      -webkit-font-smoothing: antialiased;
+      font-feature-settings: "liga";
+      font-variation-settings: "FILL" 0, "wght" 450, "GRAD" 0, "opsz" 20;
+    }
+    :root, body {
+      --gradient-1: var(--primary-dark);
+      --gradient-2: var(--primary-dark);
+      --gradient-3: var(--primary-dark);
+    }
+    body, body[data-theme="light"] { background: var(--bg); }
+    .header::before,
+    body[data-panel-side="left"] .header::before { background: var(--primary-dark); }
+    .header h1 .material-icons {
+      color: var(--primary);
+      background: none;
+      -webkit-background-clip: initial;
+      background-clip: initial;
+      -webkit-text-fill-color: currentColor;
+    }
+    .theme-toggle-btn.active,
+    .tab-btn.active,
+    .action-btn.primary,
+    .apply-grid-btn,
+    .ai-provider-btn.active,
+    .ai-run-btn,
+    .ai-save-connection-btn,
+    .ai-send-btn { background: var(--primary-dark); }
+    .run-check-notice,
+    .results-section .collapsible-header,
+    .fix-section .collapsible-header,
+    .quality-header,
+    .lighthouse-note,
+    .collapsible-header,
+    .saved-components-header,
+    .ai-accordion-header,
+    .ai-response-header { background: color-mix(in srgb, var(--primary-dark) 10%, var(--surface)); }
+    .ai-chat-toolbar,
+    .ai-screen-header { background: color-mix(in srgb, var(--primary-dark) 12%, var(--surface)); }
+
+    /* Side-panel sizing: the themed body is the only scrolling surface. */
+    html {
+      width: 100%;
+      height: 100%;
+      min-height: 100%;
+      overflow: hidden;
+      background: #15181d;
+    }
+    html[data-theme="light"] { background: #f8f9ff; }
+    body[data-theme="dark"] { background-color: #15181d !important; }
+    body[data-theme="light"] { background-color: #f8f9ff !important; }
+    body {
+      height: 100%;
+      min-height: 100%;
+      max-height: 100%;
+      overscroll-behavior: contain;
+      scrollbar-gutter: stable;
+    }
+
+    /* Cleaner controls and Font Awesome proportions. */
+    button,
+    [role="button"] { box-shadow: none !important; }
+    .fa-solid,
+    .fa-regular { width: 1.15em; text-align: center; line-height: 1; }
+    .tab-btn .fa-solid { font-size: 16px; }
+    .header h1 .fa-solid { color: var(--primary); font-size: 17px; }
+    .brand-mark { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 6px; }
+    .theme-toggle-btn .fa-solid { font-size: 15px; }
+    .theme-sun-icon { width: 18px; height: 18px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; }
+    .action-btn .fa-solid { font-size: 15px; }
+    .ai-toolbar-btn .fa-solid,
+    .ai-context-action .fa-solid,
+    .ai-context-pill .fa-solid { font-size: 15px; }
+    .ai-settings-group h3 .fa-solid { color: var(--secondary); font-size: 15px; }
+    .ai-empty-state > .fa-regular { color: var(--secondary); font-size: 29px; }
+    .tab-navigation { gap: 5px; padding: 5px; }
+    .tab-btn { gap: 6px; }
+    .tab-btn.active { outline: 1px solid color-mix(in srgb, var(--primary) 25%, transparent); }
+    .action-btn,
+    .ai-toolbar-btn,
+    .ai-context-action,
+    .ai-context-pill { transition: background-color .16s ease, border-color .16s ease, color .16s ease, transform .16s ease; }
+    .action-btn:hover:not(:disabled),
+    .ai-toolbar-btn:hover,
+    .ai-context-action:hover { transform: translateY(-1px); }
+
   </style>
 </head>
 
@@ -1453,17 +2373,20 @@
     <div class="header-content">
       <div>
         <h1>
-          <span class="material-icons">fact_check</span>
+          <img class="brand-mark" src="icon128.png" alt="">
           UI Consistency Checker
         </h1>
         <p>Scan & Analysis Tool</p>
       </div>
       <div class="theme-toggle" id="themeToggle" title="Toggle Theme">
         <button class="theme-toggle-btn active" data-theme="dark" title="Dark Theme">
-          <span class="material-icons">dark_mode</span>
+          <i class="fa-solid fa-moon" aria-hidden="true"></i>
         </button>
         <button class="theme-toggle-btn" data-theme="light" title="Light Theme">
-          <span class="material-icons">light_mode</span>
+          <svg class="theme-sun-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="4.25"/>
+            <path d="M12 1.75v2.5M12 19.75v2.5M1.75 12h2.5M19.75 12h2.5M4.75 4.75l1.8 1.8M17.45 17.45l1.8 1.8M19.25 4.75l-1.8 1.8M6.55 17.45l-1.8 1.8"/>
+          </svg>
         </button>
       </div>
     </div>
@@ -1471,33 +2394,37 @@
 
   <!-- Tab Navigation -->
   <div class="tab-navigation">
-    <button class="tab-btn active" data-tab="services">
-      <span class="material-icons">build</span>
-      Services
+    <button class="tab-btn" data-tab="services">
+      <i class="fa-solid fa-circle-check" aria-hidden="true"></i>
+      <span class="tab-label">Check</span>
     </button>
     <button class="tab-btn" data-tab="components">
-      <span class="material-icons">widgets</span>
-      Components
+      <i class="fa-solid fa-layer-group" aria-hidden="true"></i>
+      <span class="tab-label">Components</span>
+    </button>
+    <button class="tab-btn active" data-tab="ai">
+      <i class="fa-solid fa-comments" aria-hidden="true"></i>
+      <span class="tab-label">Chat</span>
     </button>
   </div>
 
   <!-- Services Tab -->
-  <div class="tab-content active" id="servicesTab">
+  <div class="tab-content" id="servicesTab">
     <div class="main-actions">
       <button class="action-btn primary" id="checkBtn" disabled>
-        <span class="material-icons">play_circle</span>
+        <i class="fa-solid fa-circle-play" aria-hidden="true"></i>
         Run Check
       </button>
       <button class="action-btn" id="gridBtn">
-        <span class="material-icons">grid_on</span>
+        <i class="fa-solid fa-border-all" aria-hidden="true"></i>
         Grid
       </button>
       <button class="action-btn" id="qualityBtn" disabled>
-        <span class="material-icons">analytics</span>
+        <i class="fa-solid fa-chart-line" aria-hidden="true"></i>
         Quality
       </button>
       <button class="action-btn" id="autoFixBtn" disabled>
-        <span class="material-icons">auto_fix_high</span>
+        <i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>
         Auto-Fix
       </button>
     </div>
@@ -1616,7 +2543,6 @@
       <input type="file" id="importFile" accept=".json" style="display: none;">
     </div>
 
-
     <!-- Saved Components -->
     <div class="saved-components" id="savedComponents">
       <div class="saved-components-header" id="savedComponentsHeader">
@@ -1631,6 +2557,203 @@
         <div id="componentsList"></div>
       </div>
     </div>
+  </div>
+
+  <!-- AI Design Studio Tab -->
+  <div class="tab-content" id="aiLegacyTab" hidden>
+    <div class="ai-studio">
+      <section class="ai-card ai-accordion">
+        <button class="ai-accordion-header" type="button" aria-expanded="true">
+          <span><span class="material-icons">hub</span> AI connection</span>
+          <span class="material-icons collapse-icon">expand_less</span>
+        </button>
+        <div class="ai-accordion-content">
+          <div class="ai-provider-switch" role="group" aria-label="AI provider">
+            <button class="ai-provider-btn active" type="button" data-ai-provider="openai">
+              OpenAI
+            </button>
+            <button class="ai-provider-btn" type="button" data-ai-provider="anthropic">
+              Claude
+            </button>
+            <button class="ai-provider-btn" type="button" data-ai-provider="google">
+              Google AI Studio
+            </button>
+          </div>
+
+          <div class="ai-field">
+            <label for="aiApiKey">
+              <span>API key</span>
+              <span id="aiKeySessionLabel">Browser session only</span>
+            </label>
+            <div class="ai-key-row">
+              <input class="ai-input" id="aiApiKey" type="password" autocomplete="off" spellcheck="false"
+                placeholder="Paste your provider API key">
+              <button class="ai-icon-btn" id="aiToggleKeyBtn" type="button" title="Show API key" aria-label="Show API key">
+                <span class="material-icons">visibility</span>
+              </button>
+            </div>
+            <div class="ai-help">Stored for this browser session and sent only to the selected provider. <a id="aiGetKeyLink" href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">Get an API key</a>.</div>
+            <div class="ai-help ai-warning">For personal/local BYOK use. Public releases should use a secure backend relay.</div>
+          </div>
+
+          <div class="ai-field">
+            <div class="ai-model-label">
+              <label for="aiModelSelect">Model</label>
+              <button class="ai-refresh-models-btn" id="aiRefreshModelsBtn" type="button">
+                <span class="material-icons">refresh</span>
+                Load my models
+              </button>
+            </div>
+            <select class="ai-input" id="aiModelSelect">
+              <option value="gpt-6-astra">GPT-6 Astra — gpt-6-astra</option>
+              <option value="gpt-5.6-sol">GPT-5.6 Sol — gpt-5.6-sol</option>
+              <option value="gpt-5.6-terra">GPT-5.6 Terra — gpt-5.6-terra</option>
+              <option value="__custom__">Custom model ID…</option>
+            </select>
+            <input class="ai-input ai-custom-model" id="aiCustomModel" type="text" autocomplete="off" spellcheck="false" placeholder="Enter any provider model ID" hidden>
+            <div class="ai-help" id="aiModelHint">Choose a suggested model, load every model available to your key, or use a custom model ID.</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="ai-card ai-accordion">
+        <button class="ai-accordion-header" type="button" aria-expanded="true">
+          <span><span class="material-icons">edit_note</span> Design request</span>
+          <span class="material-icons collapse-icon">expand_less</span>
+        </button>
+        <div class="ai-accordion-content">
+          <div class="ai-quick-prompts" aria-label="Quick requests">
+            <button class="ai-chip" type="button" data-ai-prompt="Audit the visual hierarchy, spacing, typography, colors, and component consistency. Prioritize the five changes with the greatest user impact.">Design audit</button>
+            <button class="ai-chip" type="button" data-ai-prompt="Find responsive layout problems at mobile, tablet, and desktop widths. Suggest a robust CSS patch using the page's existing design language.">Responsive</button>
+            <button class="ai-chip" type="button" data-ai-prompt="Review the CSS architecture for duplication, specificity conflicts, fragile selectors, and inconsistent tokens. Propose a cleaner maintainable patch.">Refactor CSS</button>
+            <button class="ai-chip" type="button" data-ai-prompt="Review visual accessibility: contrast, focus states, readable type, target sizes, form clarity, and motion. Return prioritized fixes and CSS.">Accessibility</button>
+          </div>
+          <textarea class="ai-textarea" id="aiPrompt" maxlength="5000">Audit this page and make it feel more polished, consistent, accessible, and responsive. Preserve its current brand direction.</textarea>
+        </div>
+      </section>
+
+      <section class="ai-card ai-accordion">
+        <button class="ai-accordion-header" type="button" aria-expanded="false">
+          <span><span class="material-icons">data_object</span> Page data</span>
+          <span class="material-icons collapse-icon">expand_more</span>
+        </button>
+        <div class="ai-accordion-content" hidden>
+          <div class="ai-context-line">
+            <span class="material-icons">language</span>
+            <div>
+              <div class="ai-context-title" id="aiContextName">Current active page</div>
+              <div class="ai-context-meta" id="aiContextMeta">Structure, layout, computed styles, CSS, and design tokens are captured automatically.</div>
+            </div>
+          </div>
+          <label class="ai-checkbox" for="aiIncludeText">
+            <input id="aiIncludeText" type="checkbox" checked>
+            Include visible page copy for better context
+          </label>
+          <div class="ai-privacy-note">
+            <span class="material-icons">shield</span>
+            <span>Never shared: form values, passwords, cookies, browser storage, scripts, URL queries, cross-origin frames, or CSS asset URLs.</span>
+          </div>
+        </div>
+      </section>
+
+      <div>
+        <button class="ai-run-btn" id="aiRunBtn" type="button">
+          <span class="material-icons">auto_awesome</span>
+          Analyze current page
+        </button>
+        <div class="ai-status" id="aiStatus" role="status" aria-live="polite"></div>
+      </div>
+
+      <section class="ai-response-card" id="aiResponseCard" hidden>
+        <div class="ai-response-header">
+          <div class="ai-response-title">
+            <span class="material-icons">psychology</span>
+            Design recommendation
+          </div>
+          <div class="ai-response-meta" id="aiResponseMeta"></div>
+        </div>
+        <div class="ai-response-output" id="aiResponseOutput"></div>
+        <div class="ai-response-actions">
+          <button class="ai-secondary-btn" id="aiCopyResponseBtn" type="button">
+            <span class="material-icons">content_copy</span>
+            Copy answer
+          </button>
+          <button class="ai-secondary-btn" id="aiPreviewCssBtn" type="button" disabled>
+            <span class="material-icons">preview</span>
+            Preview CSS
+          </button>
+          <button class="ai-secondary-btn" id="aiClearPreviewBtn" type="button" disabled>
+            <span class="material-icons">layers_clear</span>
+            Remove preview
+          </button>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- AI browser companion -->
+  <div class="tab-content active" id="aiTab">
+    <div class="ai-chat-shell" id="aiChatShell">
+      <header class="ai-chat-toolbar">
+        <button class="ai-toolbar-btn" id="aiHistoryBtn" type="button" aria-label="Conversations" title="Conversations"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i></button>
+        <button class="ai-conversation-title" id="aiConversationTitle" type="button" title="Rename conversation">New conversation</button>
+        <button class="ai-toolbar-btn" id="aiNewChatBtn" type="button" aria-label="New conversation" title="New conversation"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button>
+        <button class="ai-toolbar-btn" id="aiSettingsBtn" type="button" aria-label="AI settings" title="AI settings"><i class="fa-solid fa-sliders" aria-hidden="true"></i></button>
+      </header>
+
+      <main class="ai-message-list" id="aiMessageList" aria-live="polite" aria-label="Conversation messages">
+        <div class="ai-empty-state" id="aiEmptyState"><i class="fa-regular fa-message" aria-hidden="true"></i><h3>How can I help?</h3><p>Ask anything, or discuss the page you are viewing. Page access is used only when your request needs it.</p><div class="ai-empty-prompts"><button type="button" data-chat-prompt="Review this page's accessibility and prioritize the most important fixes.">Review accessibility</button><button type="button" data-chat-prompt="How can I improve the responsive layout of this page?">Improve responsive layout</button><button type="button" data-chat-prompt="Explain the CSS box model in a simple example.">Ask a general question</button></div></div>
+      </main>
+
+      <div class="ai-chat-status" id="aiChatStatus" role="status" aria-live="polite"></div>
+      <div class="ai-config-notice" id="aiConfigNotice" hidden><span>Connect an AI provider in Settings to send messages.</span><button id="aiNoticeSettingsBtn" type="button">Open Settings</button></div>
+      <div class="ai-attachment-bar" id="aiAttachmentBar" hidden><span class="material-icons">select_all</span><span class="ai-attachment-label" id="aiAttachmentLabel"></span><button class="ai-toolbar-btn" id="aiRemoveAttachment" type="button" aria-label="Remove selected element"><span class="material-icons">close</span></button></div>
+      <div class="ai-context-strip" id="aiContextStrip">
+        <button class="ai-context-pill" id="aiContextPill" type="button" title="Change page context mode"><i class="fa-solid fa-globe" aria-hidden="true"></i><span id="aiContextPillText">Context: Auto</span></button>
+        <button class="ai-context-action" id="aiInspectElementBtn" type="button"><i class="fa-solid fa-arrow-pointer" aria-hidden="true"></i>Inspect element</button>
+        <button class="ai-context-action" id="aiRefreshContextBtn" type="button" title="Refresh page context" aria-label="Refresh page context"><i class="fa-solid fa-rotate" aria-hidden="true"></i></button>
+      </div>
+      <form class="ai-composer" id="aiComposer">
+        <textarea id="aiChatInput" rows="1" maxlength="12000" placeholder="Message Hakeem…" aria-label="Message Hakeem"></textarea>
+        <button class="ai-send-btn" id="aiSendBtn" type="submit" aria-label="Send message"><i class="fa-solid fa-arrow-up" aria-hidden="true"></i></button>
+        <button class="ai-stop-btn" id="aiStopBtn" type="button" aria-label="Stop generation" hidden><i class="fa-solid fa-stop" aria-hidden="true"></i></button>
+      </form>
+    </div>
+
+    <section class="ai-global-screen ai-history-screen" id="aiHistoryPanel" hidden aria-label="Saved conversations">
+      <header class="ai-screen-header"><button class="ai-toolbar-btn" id="aiCloseHistoryBtn" type="button" aria-label="Back to chat"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button><div><strong>Conversations</strong><small>Continue any saved chat</small></div><button class="ai-toolbar-btn" id="aiHistoryNewBtn" type="button" aria-label="New conversation"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button></header>
+      <div class="ai-history-list" id="aiHistoryList"></div>
+    </section>
+
+    <section class="ai-global-screen ai-settings-screen" id="aiSettingsPanel" hidden aria-label="Global settings">
+      <header class="ai-screen-header"><button class="ai-toolbar-btn" id="aiSettingsBackBtn" type="button" aria-label="Back to chat"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i></button><div><strong>Settings</strong><small>Applies to every conversation</small></div><span></span></header>
+
+      <section class="ai-settings-group">
+        <h3><i class="fa-solid fa-palette" aria-hidden="true"></i>Appearance</h3>
+        <div class="ai-settings-grid"><div class="ai-field"><label for="aiFontSize">Chat font size</label><select class="ai-input" id="aiFontSize"><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></div><div class="ai-field"><label for="aiMotionPreference">Animations</label><select class="ai-input" id="aiMotionPreference"><option value="system">System</option><option value="on">On</option><option value="off">Reduced</option></select></div></div>
+      </section>
+
+      <section class="ai-settings-group">
+        <h3><i class="fa-solid fa-plug" aria-hidden="true"></i>AI connection</h3>
+        <div class="ai-provider-switch" role="group" aria-label="AI provider"><button class="ai-provider-btn active" type="button" data-chat-provider="openai">OpenAI</button><button class="ai-provider-btn" type="button" data-chat-provider="anthropic">Claude</button><button class="ai-provider-btn" type="button" data-chat-provider="google">Google AI</button></div>
+        <div class="ai-field"><label for="aiAuthMode">Connection method</label><select class="ai-input" id="aiAuthMode"><option value="api">API key</option><option value="account">Browser account login</option></select></div>
+        <div id="aiAccountPanel" hidden><div class="ai-privacy-note"><span class="material-icons">language</span><span>Sign in on the provider's official website. Your credentials stay in its secure local session and are never copied into the extension.</span></div><button class="ai-secondary-btn" id="aiAccountLoginBtn" type="button"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Sign in with browser</button><div class="ai-help" id="aiAccountHint"></div><div class="ai-help"><a href="native-host/README.md" target="_blank" rel="noreferrer">One-time companion setup</a></div></div>
+        <div class="ai-field" id="aiApiKeyField"><label for="aiChatApiKey"><span>API key</span><span>Session only</span></label><div class="ai-key-row"><input class="ai-input" id="aiChatApiKey" type="password" autocomplete="off" spellcheck="false" placeholder="Paste provider API key"><button class="ai-icon-btn" id="aiChatToggleKey" type="button" aria-label="Show API key"><span class="material-icons">visibility</span></button></div><div class="ai-help">Never exposed to webpage scripts. <a id="aiChatGetKey" href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">Get a key</a>.</div></div>
+        <div class="ai-field" id="aiModelField"><div class="ai-model-label"><label for="aiChatModel">Model</label><button class="ai-refresh-models-btn" id="aiChatLoadModels" type="button"><span class="material-icons">refresh</span>Load models</button></div><select class="ai-input" id="aiChatModel"></select><input class="ai-input ai-custom-model" id="aiChatCustomModel" type="text" placeholder="Custom model ID" hidden><div class="ai-help" id="aiChatModelHint"></div></div>
+        <div class="ai-field" id="aiEndpointField"><label for="aiApiEndpoint">API endpoint <span>Optional</span></label><input class="ai-input" id="aiApiEndpoint" type="url" placeholder="Use provider default" disabled><div class="ai-help">Custom endpoints are reserved for a future compatible-provider release.</div></div>
+        <div class="ai-connection-status" id="aiConnectionStatus" role="status">Not tested</div>
+        <div class="ai-settings-actions"><button class="ai-secondary-btn" id="aiTestConnectionBtn" type="button">Test connection</button><button class="ai-save-connection-btn" id="aiSaveConnectionBtn" type="button"><span class="material-icons">check</span><span>Save key &amp; return to chat</span></button></div>
+      </section>
+
+      <section class="ai-settings-group">
+        <h3><i class="fa-solid fa-shield-halved" aria-hidden="true"></i>Page context &amp; privacy</h3>
+        <div class="ai-settings-grid"><div class="ai-field"><label for="aiContextMode">Default page access</label><select class="ai-input" id="aiContextMode"><option value="auto">Auto — only when relevant</option><option value="on">On — include current page</option><option value="off">Off — general chat only</option></select></div><div class="ai-field"><label for="aiContextSize">Context size</label><select class="ai-input" id="aiContextSize"><option value="compact">Compact</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option></select></div></div>
+        <div class="ai-setting-switches"><label class="ai-checkbox"><input id="aiAllowDom" type="checkbox" checked>Allow DOM inspection</label><label class="ai-checkbox"><input id="aiAllowScreenshots" type="checkbox" checked>Allow screenshots when safe</label><label class="ai-checkbox"><input id="aiAllowElementSelection" type="checkbox" checked>Allow selected-element inspection</label><label class="ai-checkbox"><input id="aiChatIncludeText" type="checkbox" checked>Include relevant visible text</label><label class="ai-checkbox"><input id="aiUseComponentLibrary" type="checkbox" checked>Enforce imported components as the UI standard</label></div>
+        <div class="ai-field"><label for="aiHistoryRetention">Keep chat history</label><select class="ai-input" id="aiHistoryRetention"><option value="forever">Until I delete it</option><option value="30">30 days</option><option value="7">7 days</option></select></div>
+        <div class="ai-privacy-note"><span class="material-icons">shield</span><span>Page content is sent only when the context indicator is active. Imported components are selected by relevance and size-limited before use. Passwords, entered form values, cookies, tokens, storage credentials, scripts, URL queries, cross-origin frames, and unsafe screenshots are excluded.</span></div>
+        <div class="ai-settings-actions"><button class="ai-danger-btn" id="aiClearHistoryBtn" type="button">Clear chat history</button><button class="ai-danger-btn" id="aiClearAllDataBtn" type="button">Clear all AI data</button></div>
+      </section>
+    </section>
   </div>
 
   <!-- Add Component Modal -->
@@ -1649,53 +2772,29 @@
       </div>
 
       <div class="form-group">
-        <label>HTML Tag</label>
-        <textarea id="componentHTMLTag" rows="3" placeholder='<button class="btn">Click me</button>'></textarea>
+        <label>Scope selector <span style="font-weight:400;color:var(--text-muted);">(optional)</span></label>
+        <input type="text" id="componentScope" placeholder="e.g., .login or .card">
+        <small style="display:block;margin-top:5px;color:var(--text-muted);line-height:1.4;">
+          Empty means global. With <code>.login</code>, <code>.title</code> is checked as <code>.login .title</code>.
+        </small>
       </div>
 
       <div class="form-group">
         <label>Styles (CSS)</label>
-        <textarea id="componentStyles" rows="4" placeholder="background: #007bff;
-color: white;
-padding: 10px 20px;
-border-radius: 5px;"></textarea>
+        <textarea id="componentStyles" rows="8" placeholder=".title {
+  display: flex;
+  gap: 8px;
+}"></textarea>
       </div>
 
       <div class="component-preview">
-        <label>Preview</label>
-        <pre id="componentPreview">Enter HTML tag and styles above</pre>
+        <label>Effective CSS selectors</label>
+        <pre id="componentPreview">Enter CSS selector blocks above</pre>
       </div>
 
       <div class="modal-actions">
         <button class="modal-btn modal-btn-secondary" id="cancelBtn">Cancel</button>
         <button class="modal-btn modal-btn-primary" id="saveBtn">Save Component</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- View HTML Modal -->
-  <div class="modal view-html-modal" id="viewHtmlModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="viewHtmlTitle">Component HTML</h2>
-        <button class="modal-close" id="closeViewHtmlModal">
-          <span class="material-icons">close</span>
-        </button>
-      </div>
-
-      <div class="html-code-container">
-        <pre id="viewHtmlCode"></pre>
-      </div>
-
-      <div class="modal-actions">
-        <button class="modal-btn modal-btn-secondary" id="editHtmlBtn">
-          <span class="material-icons">edit</span>
-          Edit
-        </button>
-        <button class="modal-btn modal-btn-primary" id="copyHtmlBtn">
-          <span class="material-icons">content_copy</span>
-          Copy
-        </button>
       </div>
     </div>
   </div>
@@ -1722,6 +2821,8 @@ border-radius: 5px;"></textarea>
   </div>
 
   <script src="popup.js"></script>
+  <script src="context-budget.js"></script>
+  <script src="ai-chat.js"></script>
 </body>
 
 </html>

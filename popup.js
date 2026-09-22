@@ -1,7 +1,7 @@
 /**
  * UI Consistency Checker - Popup Script
  * Component-Based Architecture (No Legacy Rules)
- * @version 1.3.1
+ * @version 1.5.1
  */
 
 // ========================================
@@ -18,9 +18,70 @@ let lastQualityResults = null;
 let gridActive = false;
 let gridSize = 32;
 let savedComponents = [];
-let currentViewComponentId = null;
+let importedClassInventory = [];
+let importedLibrarySummary = null;
 let editingComponentId = null;
 let hasRunCheck = false;
+
+const AI_PROVIDER_CONFIG = {
+  openai: {
+    label: 'OpenAI',
+    defaultModel: 'gpt-6-astra',
+    keyUrl: 'https://platform.openai.com/api-keys',
+    models: [
+      ['gpt-6-astra', 'GPT-6 Astra'],
+      ['gpt-5.6-sol', 'GPT-5.6 Sol'],
+      ['gpt-5.6-terra', 'GPT-5.6 Terra'],
+      ['gpt-5.6-luna', 'GPT-5.6 Luna'],
+      ['gpt-5.5', 'GPT-5.5']
+    ],
+    modelHint: 'Recommended OpenAI design model. You can enter another model available to your API project.'
+  },
+  anthropic: {
+    label: 'Claude',
+    defaultModel: 'claude-sonnet-5',
+    keyUrl: 'https://console.anthropic.com/settings/keys',
+    models: [
+      ['claude-sonnet-5', 'Claude Sonnet 5'],
+      ['claude-opus-5', 'Claude Opus 5'],
+      ['claude-fable-5', 'Claude Fable 5'],
+      ['claude-opus-4-8', 'Claude Opus 4.8'],
+      ['claude-sonnet-4-6', 'Claude Sonnet 4.6'],
+      ['claude-haiku-4-5-20251001', 'Claude Haiku 4.5']
+    ],
+    modelHint: 'Recommended Claude model for frontend and design work. You can enter another active Claude model ID.'
+  },
+  google: {
+    label: 'Google AI Studio',
+    defaultModel: 'gemini-3.8-flash',
+    keyUrl: 'https://aistudio.google.com/apikey',
+    models: [
+      ['gemini-3.8-flash', 'Gemini 3.8 Flash'],
+      ['gemini-3.7-flash', 'Gemini 3.7 Flash'],
+      ['gemini-3.6-flash', 'Gemini 3.6 Flash'],
+      ['gemini-3.5-flash', 'Gemini 3.5 Flash'],
+      ['gemini-3.5-flash-lite', 'Gemini 3.5 Flash-Lite'],
+      ['gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'],
+      ['gemini-2.5-pro', 'Gemini 2.5 Pro'],
+      ['gemini-2.5-flash', 'Gemini 2.5 Flash'],
+      ['gemini-2.5-flash-lite', 'Gemini 2.5 Flash-Lite']
+    ],
+    modelHint: 'Models from Google AI Studio. Refresh after adding your key to load every model enabled for your project.'
+  }
+};
+let currentAIProvider = 'openai';
+let aiModels = {
+  openai: AI_PROVIDER_CONFIG.openai.defaultModel,
+  anthropic: AI_PROVIDER_CONFIG.anthropic.defaultModel,
+  google: AI_PROVIDER_CONFIG.google.defaultModel
+};
+let aiAvailableModels = {};
+let aiApiKeys = {};
+let lastAIResponse = '';
+let lastAICss = '';
+let lastAIUserRequest = '';
+let aiPreviewActive = false;
+let aiKeySaveTimer = null;
 
 // Collapse state
 let isComponentsCollapsed = false;
@@ -73,6 +134,29 @@ const qualityCollapseIcon = document.getElementById('qualityCollapseIcon');
 const tabBtns = document.querySelectorAll('.tab-btn');
 const servicesTab = document.getElementById('servicesTab');
 const componentsTab = document.getElementById('componentsTab');
+const aiTab = document.getElementById('aiTab');
+
+// AI Design Studio
+const aiProviderBtns = document.querySelectorAll('[data-ai-provider]');
+const aiApiKey = document.getElementById('aiApiKey');
+const aiToggleKeyBtn = document.getElementById('aiToggleKeyBtn');
+const aiGetKeyLink = document.getElementById('aiGetKeyLink');
+const aiModelSelect = document.getElementById('aiModelSelect');
+const aiCustomModel = document.getElementById('aiCustomModel');
+const aiRefreshModelsBtn = document.getElementById('aiRefreshModelsBtn');
+const aiModelHint = document.getElementById('aiModelHint');
+const aiPrompt = document.getElementById('aiPrompt');
+const aiIncludeText = document.getElementById('aiIncludeText');
+const aiRunBtn = document.getElementById('aiRunBtn');
+const aiStatus = document.getElementById('aiStatus');
+const aiContextName = document.getElementById('aiContextName');
+const aiContextMeta = document.getElementById('aiContextMeta');
+const aiResponseCard = document.getElementById('aiResponseCard');
+const aiResponseOutput = document.getElementById('aiResponseOutput');
+const aiResponseMeta = document.getElementById('aiResponseMeta');
+const aiCopyResponseBtn = document.getElementById('aiCopyResponseBtn');
+const aiPreviewCssBtn = document.getElementById('aiPreviewCssBtn');
+const aiClearPreviewBtn = document.getElementById('aiClearPreviewBtn');
 
 // Theme toggle
 const themeBtns = document.querySelectorAll('.theme-toggle-btn');
@@ -85,10 +169,12 @@ const themeBtns = document.querySelectorAll('.theme-toggle-btn');
  * Initialize the popup - load all saved data and set up UI
  */
 async function initialize() {
+  await applySidePanelLayout();
   await loadSavedData();
   setupEventListeners();
   setupCollapsibleSections();
   setupThemeToggle();
+  setupAIStudio();
 }
 
 /**
@@ -97,12 +183,18 @@ async function initialize() {
 async function loadSavedData() {
   const result = await chrome.storage.local.get([
     'savedComponents',
+    'importedClassInventory',
+    'importedLibrarySummary',
     'isComponentsCollapsed',
     'isQualityCollapsed',
     'isResultsCollapsed',
     'isFixCollapsed',
     'theme',
-    'firstRun'
+    'firstRun',
+    'activePanelTab',
+    'aiProvider',
+    'aiModels',
+    'aiIncludeText'
   ]);
 
   // Load saved components
@@ -113,6 +205,10 @@ async function loadSavedData() {
     savedComponents = [];
     await chrome.storage.local.set({ savedComponents });
   }
+  importedClassInventory = Array.isArray(result.importedClassInventory)
+    ? result.importedClassInventory.filter(name => typeof name === 'string')
+    : [];
+  importedLibrarySummary = result.importedLibrarySummary || null;
 
   // Load collapse states
   if (result.isComponentsCollapsed !== undefined) {
@@ -137,6 +233,31 @@ async function loadSavedData() {
     currentTheme = result.theme;
     applyTheme(currentTheme);
   }
+
+  currentAIProvider = AI_PROVIDER_CONFIG[result.aiProvider] ? result.aiProvider : 'openai';
+  if (result.aiModels && typeof result.aiModels === 'object') {
+    aiModels = {
+      openai: validAIModel(result.aiModels.openai) || AI_PROVIDER_CONFIG.openai.defaultModel,
+      anthropic: validAIModel(result.aiModels.anthropic) || AI_PROVIDER_CONFIG.anthropic.defaultModel,
+      google: validAIModel(result.aiModels.google) || AI_PROVIDER_CONFIG.google.defaultModel
+    };
+  }
+  if (aiIncludeText) aiIncludeText.checked = result.aiIncludeText !== false;
+  let requestedPanelTab = '';
+  try {
+    const sessionResult = await chrome.storage.session.get(['aiApiKeys', 'requestedPanelTab']);
+    aiApiKeys = sessionResult.aiApiKeys && typeof sessionResult.aiApiKeys === 'object'
+      ? sessionResult.aiApiKeys
+      : {};
+    if (sessionResult.requestedPanelTab === 'ai') {
+      requestedPanelTab = 'ai';
+      await chrome.storage.session.remove('requestedPanelTab');
+    }
+  } catch (error) {
+    aiApiKeys = {};
+  }
+  applyAIProviderState();
+  activatePanelTab(requestedPanelTab || result.activePanelTab || 'ai');
 
   // Display components and update button states
   displaySavedComponents();
@@ -167,10 +288,24 @@ async function setTheme(theme) {
 }
 
 function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
   document.body.setAttribute('data-theme', theme);
   themeBtns.forEach(btn => {
     btn.classList.toggle('active', btn.dataset.theme === theme);
   });
+}
+
+async function applySidePanelLayout() {
+  document.body.dataset.panelSide = 'adaptive';
+  if (!chrome.sidePanel || typeof chrome.sidePanel.getLayout !== 'function') return;
+  try {
+    const layout = await chrome.sidePanel.getLayout();
+    if (layout && (layout.side === 'left' || layout.side === 'right')) {
+      document.body.dataset.panelSide = layout.side;
+    }
+  } catch (error) {
+    console.warn('[UI Checker] Could not read side panel placement:', error);
+  }
 }
 
 // ========================================
@@ -260,18 +395,12 @@ function setupEventListeners() {
       tabBtns.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       
-      if (targetTab === 'services') {
-        servicesTab.classList.add('active');
-        componentsTab.classList.remove('active');
-      } else if (targetTab === 'components') {
-        servicesTab.classList.remove('active');
-        componentsTab.classList.add('active');
-      }
+      activatePanelTab(targetTab, true);
     });
   });
 
   // Main action buttons
-  checkBtn.addEventListener('click', runCheck);
+  checkBtn.addEventListener('click', runCheckV14);
   qualityBtn.addEventListener('click', calculateQuality);
   autoFixBtn.addEventListener('click', runAutoFix);
   
@@ -285,19 +414,22 @@ function setupEventListeners() {
   document.getElementById('cancelBtn').addEventListener('click', closeAddModal);
   document.getElementById('saveBtn').addEventListener('click', saveComponent);
   
-  // View HTML modal
-  document.getElementById('closeViewHtmlModal').addEventListener('click', closeViewHtmlModal);
-  document.getElementById('copyHtmlBtn').addEventListener('click', copyComponentHtml);
-  document.getElementById('editHtmlBtn').addEventListener('click', editComponentFromView);
-  
   // Preview updates
-  document.getElementById('componentHTMLTag').addEventListener('input', updatePreview);
+  document.getElementById('componentScope').addEventListener('input', updatePreview);
   document.getElementById('componentStyles').addEventListener('input', updatePreview);
   
   // Import/Export
-  exportBtn.addEventListener('click', exportConfiguration);
+  exportBtn.addEventListener('click', exportConfigurationV14);
   importBtn.addEventListener('click', () => importFile.click());
-  importFile.addEventListener('change', importConfiguration);
+  importFile.addEventListener('change', importConfigurationV14);
+
+  document.getElementById('componentsList').addEventListener('click', event => {
+    const button = event.target.closest('.icon-btn[data-action][data-id]');
+    if (!button) return;
+    const { id, action } = button.dataset;
+    if (action === 'edit') editComponent(id);
+    else if (action === 'delete') deleteComponent(id);
+  });
   
   // Copy/Export fixes
   copyFixBtn.addEventListener('click', copyFixResults);
@@ -306,7 +438,403 @@ function setupEventListeners() {
   // Close modals on outside click
   window.addEventListener('click', (e) => {
     if (e.target === document.getElementById('addModal')) closeAddModal();
-    if (e.target === document.getElementById('viewHtmlModal')) closeViewHtmlModal();
+  });
+}
+
+function activatePanelTab(targetTab, remember = false) {
+  const allowed = ['services', 'components', 'ai'];
+  const selected = allowed.includes(targetTab) ? targetTab : 'services';
+  tabBtns.forEach(button => button.classList.toggle('active', button.dataset.tab === selected));
+  servicesTab.classList.toggle('active', selected === 'services');
+  componentsTab.classList.toggle('active', selected === 'components');
+  aiTab.classList.toggle('active', selected === 'ai');
+  if (remember) chrome.storage.local.set({ activePanelTab: selected });
+}
+
+chrome.runtime.onMessage.addListener(request => {
+  if (request && request.action === 'openPanelTab') activatePanelTab(request.tab);
+});
+
+// ========================================
+// AI DESIGN STUDIO
+// ========================================
+
+function setupAIStudio() {
+  if (!aiRunBtn) return;
+
+  aiProviderBtns.forEach(button => {
+    button.addEventListener('click', async () => {
+      const provider = button.dataset.aiProvider;
+      if (!AI_PROVIDER_CONFIG[provider] || provider === currentAIProvider) return;
+      await persistCurrentAIKey();
+      currentAIProvider = provider;
+      applyAIProviderState();
+      await chrome.storage.local.set({ aiProvider: currentAIProvider });
+    });
+  });
+
+  aiToggleKeyBtn.addEventListener('click', () => {
+    const showing = aiApiKey.type === 'text';
+    aiApiKey.type = showing ? 'password' : 'text';
+    aiToggleKeyBtn.title = showing ? 'Show API key' : 'Hide API key';
+    aiToggleKeyBtn.setAttribute('aria-label', aiToggleKeyBtn.title);
+    aiToggleKeyBtn.querySelector('.material-icons').textContent = showing ? 'visibility' : 'visibility_off';
+  });
+
+  aiApiKey.addEventListener('input', () => {
+    clearTimeout(aiKeySaveTimer);
+    aiKeySaveTimer = setTimeout(() => persistCurrentAIKey(), 350);
+  });
+  aiApiKey.addEventListener('change', persistCurrentAIKey);
+
+  aiModelSelect.addEventListener('change', async () => {
+    const isCustom = aiModelSelect.value === '__custom__';
+    aiCustomModel.hidden = !isCustom;
+    if (isCustom) {
+      aiCustomModel.value = aiModels[currentAIProvider] || '';
+      aiCustomModel.focus();
+      return;
+    }
+    aiModels[currentAIProvider] = aiModelSelect.value;
+    await chrome.storage.local.set({ aiModels });
+  });
+
+  aiCustomModel.addEventListener('change', saveAICustomModel);
+  aiRefreshModelsBtn.addEventListener('click', loadAIProviderModels);
+
+  document.querySelectorAll('.ai-accordion-header').forEach(header => {
+    header.addEventListener('click', () => {
+      const content = header.nextElementSibling;
+      const expanded = header.getAttribute('aria-expanded') === 'true';
+      header.setAttribute('aria-expanded', String(!expanded));
+      header.querySelector('.collapse-icon').textContent = expanded ? 'expand_more' : 'expand_less';
+      content.hidden = expanded;
+    });
+  });
+
+  aiIncludeText.addEventListener('change', () => {
+    chrome.storage.local.set({ aiIncludeText: aiIncludeText.checked });
+  });
+
+  document.querySelectorAll('[data-ai-prompt]').forEach(button => {
+    button.addEventListener('click', () => {
+      aiPrompt.value = button.dataset.aiPrompt || '';
+      aiPrompt.focus();
+    });
+  });
+
+  aiRunBtn.addEventListener('click', runAIDesignAnalysis);
+  aiCopyResponseBtn.addEventListener('click', async () => {
+    if (!lastAIResponse) return;
+    await copyAIText(lastAIResponse, 'Recommendation copied.');
+  });
+  aiPreviewCssBtn.addEventListener('click', previewAICss);
+  aiClearPreviewBtn.addEventListener('click', clearAICssPreview);
+}
+
+function applyAIProviderState() {
+  if (!aiApiKey || !aiModelSelect) return;
+  const config = AI_PROVIDER_CONFIG[currentAIProvider];
+  aiProviderBtns.forEach(button => {
+    button.classList.toggle('active', button.dataset.aiProvider === currentAIProvider);
+  });
+  aiApiKey.value = typeof aiApiKeys[currentAIProvider] === 'string' ? aiApiKeys[currentAIProvider] : '';
+  aiApiKey.placeholder = currentAIProvider === 'openai'
+    ? 'sk-…'
+    : currentAIProvider === 'anthropic' ? 'sk-ant-…' : 'Google AI Studio key';
+  populateAIModelSelect();
+  aiModelHint.textContent = config.modelHint;
+  aiGetKeyLink.href = config.keyUrl;
+  setAIStatus('');
+}
+
+function populateAIModelSelect() {
+  const config = AI_PROVIDER_CONFIG[currentAIProvider];
+  const selected = aiModels[currentAIProvider] || config.defaultModel;
+  const entries = new Map(config.models);
+  for (const id of aiAvailableModels[currentAIProvider] || []) {
+    if (!entries.has(id)) entries.set(id, id);
+  }
+  aiModelSelect.replaceChildren();
+  for (const [id, label] of entries) {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = label === id ? id : `${label} — ${id}`;
+    aiModelSelect.appendChild(option);
+  }
+  const customOption = document.createElement('option');
+  customOption.value = '__custom__';
+  customOption.textContent = 'Custom model ID…';
+  aiModelSelect.appendChild(customOption);
+
+  const known = entries.has(selected);
+  aiModelSelect.value = known ? selected : '__custom__';
+  aiCustomModel.hidden = known;
+  aiCustomModel.value = known ? '' : selected;
+}
+
+async function saveAICustomModel() {
+  const model = validAIModel(aiCustomModel.value);
+  if (!model) {
+    setAIStatus('Use letters, numbers, dots, colons, underscores, or hyphens for the custom model ID.', true);
+    return;
+  }
+  aiModels[currentAIProvider] = model;
+  await chrome.storage.local.set({ aiModels });
+}
+
+function getSelectedAIModel() {
+  return validAIModel(aiModelSelect.value === '__custom__' ? aiCustomModel.value : aiModelSelect.value);
+}
+
+async function loadAIProviderModels() {
+  const apiKey = aiApiKey.value.trim();
+  if (apiKey.length < 16) {
+    setAIStatus(`Enter your ${AI_PROVIDER_CONFIG[currentAIProvider].label} API key first.`, true);
+    aiApiKey.focus();
+    return;
+  }
+  aiRefreshModelsBtn.disabled = true;
+  aiRefreshModelsBtn.querySelector('.material-icons').classList.add('is-spinning');
+  setAIStatus(`Loading models available to your ${AI_PROVIDER_CONFIG[currentAIProvider].label} key…`);
+  try {
+    await persistCurrentAIKey();
+    const response = await sendRuntimeMessage({
+      action: 'aiListModels',
+      provider: currentAIProvider,
+      apiKey
+    }, 30000);
+    if (!response || !response.success) throw new Error(response && response.error ? response.error : 'Models could not be loaded.');
+    aiAvailableModels[currentAIProvider] = Array.isArray(response.models) ? response.models : [];
+    populateAIModelSelect();
+    setAIStatus(`${aiAvailableModels[currentAIProvider].length.toLocaleString()} available models loaded.`);
+  } catch (error) {
+    setAIStatus(error.message || 'Models could not be loaded.', true);
+  } finally {
+    aiRefreshModelsBtn.disabled = false;
+    aiRefreshModelsBtn.querySelector('.material-icons').classList.remove('is-spinning');
+  }
+}
+
+async function persistCurrentAIKey() {
+  if (!aiApiKey) return;
+  const value = aiApiKey.value.trim();
+  if (value) aiApiKeys[currentAIProvider] = value;
+  else delete aiApiKeys[currentAIProvider];
+  try {
+    await chrome.storage.session.set({ aiApiKeys });
+  } catch (error) {
+    setAIStatus('Chrome could not save the key for this browser session.', true);
+  }
+}
+
+function validAIModel(value) {
+  const model = typeof value === 'string' ? value.trim() : '';
+  return /^[a-zA-Z0-9._:-]{1,120}$/.test(model) ? model : '';
+}
+
+async function runAIDesignAnalysis() {
+  const apiKey = aiApiKey.value.trim();
+  const model = getSelectedAIModel();
+  const userRequest = aiPrompt.value.trim();
+  if (apiKey.length < 16) {
+    setAIStatus(`Enter your ${AI_PROVIDER_CONFIG[currentAIProvider].label} API key.`, true);
+    aiApiKey.focus();
+    return;
+  }
+  if (!model) {
+    setAIStatus('Choose a model or enter a valid custom model ID.', true);
+    (aiModelSelect.value === '__custom__' ? aiCustomModel : aiModelSelect).focus();
+    return;
+  }
+  if (!userRequest) {
+    setAIStatus('Tell the AI what you want to improve.', true);
+    aiPrompt.focus();
+    return;
+  }
+
+  setAIRunning(true);
+  try {
+    await persistCurrentAIKey();
+    aiModels[currentAIProvider] = model;
+    await chrome.storage.local.set({ aiModels, aiProvider: currentAIProvider, aiIncludeText: aiIncludeText.checked });
+
+    setAIStatus('Reading the page structure and visual styles…');
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) throw new Error('No active webpage was found.');
+    if (/^(chrome|edge|about|chrome-extension):/i.test(tab.url || '')) {
+      throw new Error('Chrome does not allow extensions to inspect this browser page. Open a normal website and try again.');
+    }
+    await injectContentScript(tab.id);
+    const capture = await sendTabMessage(tab.id, {
+      action: 'captureAIContext',
+      options: { includeText: aiIncludeText.checked }
+    }, 30000);
+    if (!capture || !capture.success || !capture.context) {
+      throw new Error(capture && capture.error ? capture.error : 'The page context could not be captured.');
+    }
+
+    const contextJSON = compactAIContext(capture.context);
+    const contextKB = Math.max(1, Math.round(new Blob([contextJSON]).size / 1024));
+    aiContextName.textContent = capture.context.page.title || capture.context.page.url || 'Current page';
+    aiContextMeta.textContent = `${capture.context.summary.capturedElements.toLocaleString()} visual elements · ${contextKB.toLocaleString()} KB protected context · ${capture.context.summary.stylesheetCharacters.toLocaleString()} CSS characters found`;
+
+    setAIStatus(`Sending protected page context to ${AI_PROVIDER_CONFIG[currentAIProvider].label}…`);
+    const prompt = buildAIPagePrompt(userRequest, contextJSON);
+    const response = await sendRuntimeMessage({
+      action: 'aiProviderRequest',
+      provider: currentAIProvider,
+      apiKey,
+      model,
+      prompt
+    }, 100000);
+    if (!response || !response.success) {
+      throw new Error(response && response.error ? response.error : 'The AI provider did not return a response.');
+    }
+
+    lastAIResponse = response.text;
+    lastAICss = extractAICss(response.text);
+    lastAIUserRequest = userRequest;
+    renderAIResponse(response);
+    setAIStatus(lastAICss ? 'Recommendation ready. A CSS patch is available to preview.' : 'Recommendation ready.');
+  } catch (error) {
+    setAIStatus(error.message || 'AI analysis failed.', true);
+  } finally {
+    setAIRunning(false);
+  }
+}
+
+function compactAIContext(context) {
+  const copy = {
+    ...context,
+    page: { ...context.page },
+    summary: { ...context.summary },
+    privacy: { ...context.privacy },
+    designTokens: { ...(context.designTokens || {}) },
+    elements: Array.isArray(context.elements) ? context.elements.slice() : [],
+    stylesheets: Array.isArray(context.stylesheets) ? context.stylesheets.slice() : [],
+    authoredCSS: context.authoredCSS || ''
+  };
+  let json = JSON.stringify(copy);
+  if (json.length > 190000) {
+    copy.elements = copy.elements.slice(0, 420);
+    copy.authoredCSS = copy.authoredCSS.slice(0, 45000);
+    json = JSON.stringify(copy);
+  }
+  if (json.length > 190000) {
+    copy.elements = copy.elements.slice(0, 260);
+    copy.authoredCSS = copy.authoredCSS.slice(0, 25000);
+    copy.designTokens = Object.fromEntries(Object.entries(copy.designTokens).slice(0, 140));
+    json = JSON.stringify(copy);
+  }
+  if (json.length > 190000) {
+    copy.elements = copy.elements.slice(0, 160);
+    copy.authoredCSS = copy.authoredCSS.slice(0, 12000);
+    json = JSON.stringify(copy);
+  }
+  copy.summary.sentElements = copy.elements.length;
+  copy.summary.sentStylesheetCharacters = copy.authoredCSS.length;
+  return JSON.stringify(copy);
+}
+
+function buildAIPagePrompt(userRequest, contextJSON) {
+  const diagnostics = lastCheckResults ? {
+    consistencyCheck: {
+      passed: lastCheckResults.passed || 0,
+      failed: lastCheckResults.failed || 0,
+      issues: Array.isArray(lastCheckResults.issues) ? lastCheckResults.issues.slice(0, 25) : []
+    },
+    qualitySummary: lastQualityResults || null
+  } : null;
+  const safeContext = contextJSON.replace(/<\/page_context/gi, '<\\/page_context');
+  const previous = lastAIResponse && userRequest !== lastAIUserRequest
+    ? `\n<previous_recommendation>\n${lastAIResponse.slice(0, 16000)}\n</previous_recommendation>\nRefine the previous recommendation using the new request.`
+    : '';
+  return `<user_request>\n${userRequest}\n</user_request>${previous}
+<extension_diagnostics>\n${JSON.stringify(diagnostics)}\n</extension_diagnostics>
+<page_context encoding="json">\n${safeContext}\n</page_context>`;
+}
+
+function renderAIResponse(response) {
+  aiResponseOutput.textContent = response.text;
+  const usage = response.usage || {};
+  const inputTokens = Number(usage.input_tokens || 0);
+  const outputTokens = Number(usage.output_tokens || 0);
+  const usageText = inputTokens || outputTokens ? ` · ${(inputTokens + outputTokens).toLocaleString()} tokens` : '';
+  aiResponseMeta.textContent = `${response.model || getSelectedAIModel()}${usageText}`;
+  aiResponseCard.hidden = false;
+  aiPreviewCssBtn.disabled = !lastAICss;
+  aiClearPreviewBtn.disabled = !aiPreviewActive;
+  aiResponseCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function extractAICss(text) {
+  const blocks = [];
+  for (const match of String(text).matchAll(/```css\s*([\s\S]*?)```/gi)) {
+    if (match[1] && match[1].trim()) blocks.push(match[1].trim());
+  }
+  return blocks.join('\n\n').slice(0, 60000);
+}
+
+async function previewAICss() {
+  if (!lastAICss) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) throw new Error('No active webpage was found.');
+    await injectContentScript(tab.id);
+    const result = await sendTabMessage(tab.id, { action: 'previewAICss', css: lastAICss }, 10000);
+    if (!result || !result.success) throw new Error(result && result.error ? result.error : 'The CSS preview could not be applied.');
+    aiPreviewActive = true;
+    aiClearPreviewBtn.disabled = false;
+    setAIStatus('Temporary CSS preview applied. Reloading the page also removes it.');
+  } catch (error) {
+    setAIStatus(error.message || 'The CSS preview could not be applied.', true);
+  }
+}
+
+async function clearAICssPreview() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) throw new Error('No active webpage was found.');
+    await sendTabMessage(tab.id, { action: 'clearAICssPreview' }, 10000);
+    aiPreviewActive = false;
+    aiClearPreviewBtn.disabled = true;
+    setAIStatus('Temporary CSS preview removed.');
+  } catch (error) {
+    setAIStatus(error.message || 'The CSS preview could not be removed.', true);
+  }
+}
+
+async function copyAIText(value, successMessage) {
+  try {
+    await navigator.clipboard.writeText(value);
+    setAIStatus(successMessage);
+  } catch (error) {
+    setAIStatus('Chrome could not copy the text.', true);
+  }
+}
+
+function setAIRunning(running) {
+  aiRunBtn.disabled = running;
+  aiRunBtn.classList.toggle('is-loading', running);
+  aiRunBtn.setAttribute('aria-busy', String(running));
+  aiRunBtn.querySelector('.material-icons').textContent = running ? 'progress_activity' : 'auto_awesome';
+}
+
+function setAIStatus(message, isError = false) {
+  if (!aiStatus) return;
+  aiStatus.textContent = message;
+  aiStatus.classList.toggle('error', isError);
+}
+
+function sendRuntimeMessage(message, timeoutMs = 100000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('The AI request timed out.')), timeoutMs);
+    chrome.runtime.sendMessage(message, response => {
+      clearTimeout(timer);
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(response);
+    });
   });
 }
 
@@ -349,8 +877,8 @@ async function toggleGrid() {
   
   gridBtn.classList.toggle('active-state', gridActive);
   gridBtn.innerHTML = gridActive 
-    ? '<span class="material-icons">grid_off</span>Grid' 
-    : '<span class="material-icons">grid_on</span>Grid';
+    ? '<i class="fa-solid fa-border-none" aria-hidden="true"></i>Grid' 
+    : '<i class="fa-solid fa-border-all" aria-hidden="true"></i>Grid';
 }
 
 async function applyCustomGrid() {
@@ -378,9 +906,9 @@ function openAddComponentModal() {
   editingComponentId = null;
   document.getElementById('modalTitle').textContent = 'Add Component';
   document.getElementById('componentName').value = '';
-  document.getElementById('componentHTMLTag').value = '';
+  document.getElementById('componentScope').value = '';
   document.getElementById('componentStyles').value = '';
-  document.getElementById('componentPreview').textContent = 'Enter HTML tag and styles above';
+  document.getElementById('componentPreview').textContent = 'Enter CSS selector blocks above';
   document.getElementById('saveBtn').textContent = 'Save Component';
   document.getElementById('addModal').classList.add('show');
 }
@@ -390,75 +918,52 @@ function closeAddModal() {
   editingComponentId = null;
 }
 
-function closeViewHtmlModal() {
-  document.getElementById('viewHtmlModal').classList.remove('show');
-  currentViewComponentId = null;
-}
-
-function copyComponentHtml() {
-  if (currentViewComponentId) {
-    const component = savedComponents.find(c => c.id === currentViewComponentId);
-    if (component) {
-      navigator.clipboard.writeText(component.html);
-      showSuccess('HTML copied!');
-    }
-  }
-}
-
-function editComponentFromView() {
-  if (currentViewComponentId) {
-    const component = savedComponents.find(c => c.id === currentViewComponentId);
-    if (component) {
-      closeViewHtmlModal();
-      editingComponentId = currentViewComponentId;
-      document.getElementById('modalTitle').textContent = 'Edit Component';
-      document.getElementById('componentName').value = component.name;
-      document.getElementById('componentHTMLTag').value = component.htmlTag || component.html;
-      document.getElementById('componentStyles').value = component.styles || '';
-      updatePreview();
-      document.getElementById('saveBtn').textContent = 'Update Component';
-      document.getElementById('addModal').classList.add('show');
-    }
-  }
-}
-
 function updatePreview() {
-  const htmlTag = document.getElementById('componentHTMLTag').value;
+  const scope = document.getElementById('componentScope').value.trim();
   const styles = document.getElementById('componentStyles').value;
-  
-  if (!htmlTag && !styles) {
-    document.getElementById('componentPreview').textContent = 'Enter HTML tag and styles above';
+
+  if (!styles.trim()) {
+    document.getElementById('componentPreview').textContent = 'Enter CSS selector blocks above';
     return;
   }
-  
-  let preview = 'HTML:\n' + formatHtml(htmlTag);
-  if (styles) {
-    preview += '\n\nCSS:\n' + styles;
-  }
-  
-  document.getElementById('componentPreview').textContent = preview;
+
+  const selectors = Array.from(styles.matchAll(/(?:^|\})\s*([^@{}][^{}]*)\s*\{/g), match => match[1].trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .map(selector => {
+      if (!scope) return selector;
+      if (selector.includes('&')) return selector.replaceAll('&', scope);
+      return selector.includes(scope) ? selector : `${scope} ${selector}`;
+    });
+  document.getElementById('componentPreview').textContent = selectors.length
+    ? selectors.join('\n')
+    : 'CSS must contain selector blocks, for example: .title { color: navy; }';
 }
 
-function detectComponentType(html) {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  const element = doc.body.firstElementChild;
-  if (!element) return 'custom';
-  
-  const tagName = element.tagName.toLowerCase();
-  const classList = element.className ? element.className.split(/\s+/) : [];
-  
-  if (tagName === 'button') return 'button';
-  if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return 'input';
-  if (tagName === 'nav') return 'navbar';
-  if (tagName === 'dialog') return 'modal';
-  if (classList.some(c => c.includes('btn') || c.includes('button'))) return 'button';
-  if (classList.some(c => c.includes('input') || c.includes('form-control'))) return 'input';
-  if (classList.some(c => c.includes('card'))) return 'card';
-  if (classList.some(c => c.includes('modal') || c.includes('dialog'))) return 'modal';
-  if (classList.some(c => c.includes('nav') || c.includes('navbar'))) return 'navbar';
-  
+function detectComponentType(name, styles) {
+  const hint = `${name} ${styles}`.toLowerCase();
+  if (/\b(btn|button|fab)\b/.test(hint)) return 'button';
+  if (/\b(input|textarea|select|field|form-control|picker)\b/.test(hint)) return 'input';
+  if (/\bcard\b/.test(hint)) return 'card';
+  if (/\b(modal|dialog|drawer|sheet)\b/.test(hint)) return 'modal';
+  if (/\b(nav|navbar|toolbar|app-bar|tabs?)\b/.test(hint)) return 'navbar';
   return 'custom';
+}
+
+function validateCssOnlyComponent(name, scope, styles) {
+  if (!name) return 'Please enter a component name.';
+  if (!styles) return 'Please enter the component CSS.';
+  if (!/[^{}]+\{[^{}]*\}/s.test(styles)) {
+    return 'CSS must contain complete selector blocks, for example: .title { color: navy; }';
+  }
+  if (scope) {
+    try {
+      document.createDocumentFragment().querySelector(scope);
+    } catch (error) {
+      return `Scope is not a valid CSS selector: ${error.message}`;
+    }
+  }
+  return '';
 }
 
 async function saveComponent() {
@@ -471,41 +976,30 @@ async function saveComponent() {
 
 async function saveNewComponent() {
   const name = document.getElementById('componentName').value.trim();
-  const htmlTag = document.getElementById('componentHTMLTag').value.trim();
+  const scope = document.getElementById('componentScope').value.trim();
   const styles = document.getElementById('componentStyles').value.trim();
-  
-  if (!name || !htmlTag) {
-    alert('Please enter component name and HTML tag');
-    return;
-  }
-  
-  const finalHtml = combineHtmlWithStyles(htmlTag, styles);
-  const componentType = detectComponentType(finalHtml);
+  const validationError = validateCssOnlyComponent(name, scope, styles);
+  if (validationError) return alert(validationError);
+  const componentType = detectComponentType(name, styles);
   
   const component = {
     id: 'comp-' + Date.now(),
     name,
     type: 'component',
     componentType,
-    html: finalHtml,
-    htmlTag: htmlTag,
-    styles: styles
+    ...(scope ? { scope } : {}),
+    styles
   };
   
   savedComponents.push(component);
   await chrome.storage.local.set({ savedComponents });
+  invalidateCheckState();
   displaySavedComponents();
   closeAddModal();
   resetAddModal();
   showSuccess('Component saved!');
 }
 
-
-function combineHtmlWithStyles(htmlTag, styles) {
-  // Styles are now CSS, not inline styles
-  // Return HTML tag as-is, styles are stored separately
-  return htmlTag;
-}
 
 function updateCheckButtonState() {
   // Enable Run Check button only if there's at least one component
@@ -521,58 +1015,55 @@ function updateCheckButtonState() {
 function displaySavedComponents() {
   const container = document.getElementById('savedComponents');
   const list = document.getElementById('componentsList');
-  document.getElementById('componentCount').textContent = savedComponents.length;
-  
+  document.getElementById('componentCount').textContent = String(savedComponents.length);
+  list.replaceChildren();
+
   if (savedComponents.length === 0) {
     container.classList.remove('show');
     updateCheckButtonState();
     return;
   }
-  
-  container.classList.add('show');
-  list.innerHTML = savedComponents.map(comp => `
-    <div class="saved-component">
-      <div class="component-info">
-        <div class="component-name">${escapeHtml(comp.name)}</div>
-        <div class="component-type">${comp.componentType.charAt(0).toUpperCase() + comp.componentType.slice(1)}</div>
-      </div>
-      <div class="component-actions">
-        <button class="icon-btn" data-id="${comp.id}" data-action="view" title="View HTML">
-          <span class="material-icons">visibility</span>
-        </button>
-        <button class="icon-btn" data-id="${comp.id}" data-action="edit" title="Edit">
-          <span class="material-icons">edit</span>
-        </button>
-        <button class="icon-btn delete" data-id="${comp.id}" data-action="delete" title="Delete">
-          <span class="material-icons">delete</span>
-        </button>
-      </div>
-    </div>
-  `).join('');
-  
-  // Add event listeners to action buttons
-  list.querySelectorAll('.icon-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.id;
-      const action = btn.dataset.action;
-      if (action === 'view') viewComponentHtml(id);
-      else if (action === 'edit') editComponent(id);
-      else if (action === 'delete') deleteComponent(id);
-    });
-  });
-  
-  updateCheckButtonState();
-}
 
-function viewComponentHtml(id) {
-  const component = savedComponents.find(c => c.id === id);
-  if (component) {
-    currentViewComponentId = id;
-    document.getElementById('viewHtmlTitle').textContent = component.name;
-    document.getElementById('viewHtmlCode').textContent = formatHtml(component.html);
-    document.getElementById('viewHtmlModal').classList.add('show');
+  const fragment = document.createDocumentFragment();
+  for (const component of savedComponents) {
+    const row = document.createElement('div');
+    row.className = 'saved-component';
+
+    const info = document.createElement('div');
+    info.className = 'component-info';
+    const name = document.createElement('div');
+    name.className = 'component-name';
+    name.textContent = component.name || 'Unnamed component';
+    const type = document.createElement('div');
+    type.className = 'component-type';
+    const typeName = component.componentType || 'custom';
+    type.textContent = typeName.charAt(0).toUpperCase() + typeName.slice(1);
+    info.append(name, type);
+
+    const actions = document.createElement('div');
+    actions.className = 'component-actions';
+    for (const [action, icon, title] of [
+      ['edit', 'edit', 'Edit'],
+      ['delete', 'delete', 'Delete']
+    ]) {
+      const button = document.createElement('button');
+      button.className = `icon-btn${action === 'delete' ? ' delete' : ''}`;
+      button.dataset.id = component.id;
+      button.dataset.action = action;
+      button.title = title;
+      const iconElement = document.createElement('span');
+      iconElement.className = 'material-icons';
+      iconElement.textContent = icon;
+      button.appendChild(iconElement);
+      actions.appendChild(button);
+    }
+
+    row.append(info, actions);
+    fragment.appendChild(row);
   }
+  list.appendChild(fragment);
+  container.classList.add('show');
+  updateCheckButtonState();
 }
 
 function editComponent(id) {
@@ -580,8 +1071,8 @@ function editComponent(id) {
   if (component) {
     editingComponentId = id;
     document.getElementById('modalTitle').textContent = 'Edit Component';
-    document.getElementById('componentName').value = component.name;
-    document.getElementById('componentHTMLTag').value = component.htmlTag || component.html;
+    document.getElementById('componentName').value = component.name || '';
+    document.getElementById('componentScope').value = component.scope || '';
     document.getElementById('componentStyles').value = component.styles || '';
     updatePreview();
     document.getElementById('saveBtn').textContent = 'Update Component';
@@ -591,16 +1082,11 @@ function editComponent(id) {
 
 async function updateComponent(id) {
   const name = document.getElementById('componentName').value.trim();
-  const htmlTag = document.getElementById('componentHTMLTag').value.trim();
+  const scope = document.getElementById('componentScope').value.trim();
   const styles = document.getElementById('componentStyles').value.trim();
-  
-  if (!name || !htmlTag) {
-    alert('Please enter component name and HTML tag');
-    return;
-  }
-  
-  const finalHtml = combineHtmlWithStyles(htmlTag, styles);
-  const componentType = detectComponentType(finalHtml);
+  const validationError = validateCssOnlyComponent(name, scope, styles);
+  if (validationError) return alert(validationError);
+  const componentType = detectComponentType(name, styles);
   
   const index = savedComponents.findIndex(c => c.id === id);
   if (index !== -1) {
@@ -608,11 +1094,12 @@ async function updateComponent(id) {
       ...savedComponents[index],
       name,
       componentType,
-      html: finalHtml,
-      htmlTag: htmlTag,
-      styles: styles
+      styles,
+      ...(scope ? { scope } : {})
     };
+    if (!scope) delete savedComponents[index].scope;
     await chrome.storage.local.set({ savedComponents });
+    invalidateCheckState();
     displaySavedComponents();
   }
   
@@ -625,15 +1112,16 @@ async function deleteComponent(id) {
   if (confirm('Delete this component?')) {
     savedComponents = savedComponents.filter(c => c.id !== id);
     await chrome.storage.local.set({ savedComponents });
+    invalidateCheckState();
     displaySavedComponents();
   }
 }
 
 function resetAddModal() {
   document.getElementById('componentName').value = '';
-  document.getElementById('componentHTMLTag').value = '';
+  document.getElementById('componentScope').value = '';
   document.getElementById('componentStyles').value = '';
-  document.getElementById('componentPreview').textContent = 'Enter HTML tag and styles above';
+  document.getElementById('componentPreview').textContent = 'Enter CSS selector blocks above';
   document.getElementById('saveBtn').textContent = 'Save Component';
 }
 
@@ -647,7 +1135,7 @@ async function exportConfiguration() {
   
   chrome.tabs.sendMessage(tab.id, { action: 'scanPage' }, (response) => {
     const exportData = {
-      version: '1.3.1',
+      version: '1.5.1',
       exportDate: new Date().toISOString(),
       components: savedComponents,
       pageScan: response || null
@@ -696,9 +1184,197 @@ function importConfiguration(e) {
   reader.readAsText(file);
 }
 
+async function exportConfigurationV14() {
+  const exportData = {
+    kind: 'ui-checker-config',
+    version: '1.5.1',
+    exportDate: new Date().toISOString(),
+    library: importedLibrarySummary,
+    components: savedComponents,
+    classInventory: { items: importedClassInventory }
+  };
+  downloadJson(exportData, `ui-checker-config-${Date.now()}.json`);
+  showSuccess('Configuration exported!');
+}
+
+async function importConfigurationV14(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file) return;
+
+  try {
+    if (file.size > 8 * 1024 * 1024) throw new Error('File is larger than the 8 MB import limit.');
+    const parsed = JSON.parse(await file.text());
+    const rawComponents = Array.isArray(parsed) ? parsed : parsed && parsed.components;
+    if (!Array.isArray(rawComponents)) throw new Error('Expected a JSON object with a components array.');
+    const components = normalizeImportedComponents(rawComponents);
+    const classInventory = extractClassInventory(parsed);
+    if (JSON.stringify({ components, classInventory }).length > 4 * 1024 * 1024) {
+      throw new Error('Normalized catalog exceeds the 4 MB storage safety limit.');
+    }
+    const tokenCount = parsed && parsed.tokens && typeof parsed.tokens === 'object'
+      ? Object.keys(parsed.tokens).length
+      : Number(parsed && parsed.library && parsed.library.tokenCount) || 0;
+    const library = parsed && parsed.library && typeof parsed.library === 'object' ? parsed.library : {};
+    const summary = {
+      id: stringField(library.id || 'custom', 100, 'library id'),
+      name: stringField(library.name || file.name.replace(/\.json$/i, ''), 160, 'library name'),
+      version: typeof library.version === 'string' ? library.version.slice(0, 40) : '',
+      componentCount: components.length,
+      classCount: classInventory.length,
+      tokenCount,
+      sourceFile: file.name.slice(0, 200)
+    };
+
+    if (!confirm(`Import ${components.length} components and ${classInventory.length.toLocaleString()} classes from "${file.name}"?`)) return;
+
+    // Persist first so a storage failure cannot replace the working in-memory catalog.
+    await chrome.storage.local.set({
+      savedComponents: components,
+      importedClassInventory: classInventory,
+      importedLibrarySummary: summary
+    });
+    savedComponents = components;
+    importedClassInventory = classInventory;
+    importedLibrarySummary = summary;
+    invalidateCheckState();
+    displaySavedComponents();
+    showSuccess(`Imported ${components.length} components · ${classInventory.length.toLocaleString()} classes · ${tokenCount.toLocaleString()} tokens`);
+  } catch (error) {
+    showError('Import Error', error.message || 'The JSON file is not valid.');
+  } finally {
+    importFile.value = '';
+  }
+}
+
+function normalizeImportedComponents(input) {
+  if (input.length > 500) throw new Error('A catalog can contain at most 500 live-check components.');
+  const usedIds = new Set();
+  return input.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      throw new Error(`Component ${index + 1} must be an object.`);
+    }
+    const name = stringField(item.name, 160, `component ${index + 1} name`);
+    // A complete source-ordered library cascade can legitimately exceed the
+    // old 250 KB per-component limit. The normalized catalog-wide 4 MB check
+    // remains the authoritative storage safety boundary.
+    const styles = stringField(item.styles ?? '', 4 * 1024 * 1024, `${name} styles`, true);
+    if (!styles.trim()) throw new Error(`${name} must include CSS styles for checking.`);
+    if (!/[^{}]+\{[^{}]*\}/s.test(styles)) {
+      throw new Error(`${name} must use complete CSS selector blocks.`);
+    }
+    const scope = typeof item.scope === 'string' ? item.scope.trim().slice(0, 500) : '';
+    if (scope) {
+      try {
+        document.createDocumentFragment().querySelector(scope);
+      } catch (error) {
+        throw new Error(`${name} has an invalid scope selector.`);
+      }
+    }
+
+    let baseId = typeof item.id === 'string' && item.id.trim()
+      ? item.id.trim().slice(0, 120)
+      : `component-${index + 1}`;
+    let id = baseId;
+    let suffix = 2;
+    while (usedIds.has(id)) id = `${baseId}-${suffix++}`;
+    usedIds.add(id);
+
+    const detectedType = detectComponentType(name, styles);
+    const componentType = typeof item.componentType === 'string' && item.componentType.trim()
+      ? item.componentType.trim().slice(0, 40)
+      : detectedType || 'custom';
+    return {
+      id,
+      name,
+      type: 'component',
+      componentType,
+      styles,
+      ...(scope ? { scope } : {})
+    };
+  });
+}
+
+function extractClassInventory(parsed) {
+  if (!parsed || Array.isArray(parsed)) return [];
+  let raw = [];
+  if (Array.isArray(parsed.classes)) raw = parsed.classes;
+  else if (Array.isArray(parsed.classInventory)) raw = parsed.classInventory;
+  else if (parsed.classInventory && Array.isArray(parsed.classInventory.items)) raw = parsed.classInventory.items;
+  if (raw.length > 10000) throw new Error('Class inventory exceeds the 10,000 item limit.');
+  const names = raw.map(item => typeof item === 'string' ? item : item && item.name)
+    .filter(name => typeof name === 'string' && name.length > 0 && name.length <= 200);
+  return Array.from(new Set(names)).sort();
+}
+
+function stringField(value, maximumLength, label, allowEmpty = false) {
+  if (typeof value !== 'string') throw new Error(`${label} must be a string.`);
+  if (!allowEmpty && !value.trim()) throw new Error(`${label} is required.`);
+  if (value.length > maximumLength) throw new Error(`${label} exceeds ${maximumLength.toLocaleString()} characters.`);
+  return value;
+}
+
+function downloadJson(value, filename) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(value, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function invalidateCheckState() {
+  lastCheckResults = null;
+  lastFixResults = null;
+  lastQualityResults = null;
+  hasRunCheck = false;
+  qualityBtn.disabled = true;
+  autoFixBtn.disabled = true;
+}
+
 // ========================================
 // RUN CHECK (Component-Based)
 // ========================================
+
+async function runCheckV14() {
+  if (savedComponents.length === 0) {
+    showError('No Components', 'Please import or add at least one component before running a check.');
+    return null;
+  }
+
+  checkBtn.disabled = true;
+  checkBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>Checking...';
+  resultsSection.classList.add('show');
+  results.innerHTML = '<div class="loading"><div class="spinner"></div>Scanning page...</div>';
+  stats.classList.remove('show');
+  isResultsCollapsed = false;
+  updateResultsCollapseState();
+
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab || !tab.id) throw new Error('No active tab is available.');
+    await injectContentScript(tab.id);
+    const response = await sendTabMessage(tab.id, {
+      action: 'runCheck',
+      components: savedComponents,
+      classInventory: importedClassInventory
+    }, 30000);
+    if (!response || response.success === false) {
+      throw new Error(response && response.error || 'The page returned no check result.');
+    }
+    lastCheckResults = response;
+    enableQualityFeatures();
+    displayResults(response);
+    return response;
+  } catch (error) {
+    showError('Check Failed', error.message || 'Could not scan this page.');
+    return null;
+  } finally {
+    checkBtn.disabled = savedComponents.length === 0;
+    checkBtn.innerHTML = '<i class="fa-solid fa-circle-play" aria-hidden="true"></i>Run Check';
+  }
+}
 
 async function runCheck() {
   // Check if there are any components
@@ -708,7 +1384,7 @@ async function runCheck() {
   }
   
   checkBtn.disabled = true;
-  checkBtn.innerHTML = '<span class="material-icons">hourglass_empty</span>Checking...';
+  checkBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>Checking...';
   
   // Show results section with loading state
   resultsSection.classList.add('show');
@@ -732,10 +1408,11 @@ async function runCheck() {
     // Send saved components to content script
     chrome.tabs.sendMessage(tab.id, { 
       action: 'runCheck', 
-      components: savedComponents 
+      components: savedComponents,
+      classInventory: importedClassInventory
     }, (response) => {
       checkBtn.disabled = false;
-      checkBtn.innerHTML = '<span class="material-icons">play_circle</span>Run Check';
+      checkBtn.innerHTML = '<i class="fa-solid fa-circle-play" aria-hidden="true"></i>Run Check';
       
       if (chrome.runtime.lastError) {
         showError('Error', 'Could not scan this page. ' + chrome.runtime.lastError.message);
@@ -749,14 +1426,14 @@ async function runCheck() {
       
       lastCheckResults = response;
       // If nothing matched on the page, show a friendly informational note
-      if (!response.totalChecked || response.totalChecked === 0) {
+      if ((!response.totalChecked || response.totalChecked === 0) && !response.classAudit) {
         results.innerHTML = `
           <div class="empty-state" style="text-align:center; padding: 24px 16px;">
             <span class="material-icons" style="font-size:40px; color:var(--text-muted); display:block; margin-bottom:10px;">manage_search</span>
             <p style="font-size:13px; font-weight:600; color:var(--text); margin:0 0 6px;">No Matching Elements Found</p>
             <p style="font-size:11px; color:var(--text-muted); margin:0 0 12px; line-height:1.5;">
               None of your saved components were found on this page.<br>
-              Make sure the HTML tag and class names match elements on the page.
+              Make sure the CSS selectors and optional scope match elements on the page.
             </p>
             <div style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px 12px; text-align:left;">
               <p style="font-size:10px; color:var(--text-muted); margin:0 0 6px; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Tips</p>
@@ -778,12 +1455,12 @@ async function runCheck() {
     });
   } catch (error) {
     checkBtn.disabled = false;
-    checkBtn.innerHTML = '<span class="material-icons">play_circle</span>Run Check';
+    checkBtn.innerHTML = '<i class="fa-solid fa-circle-play" aria-hidden="true"></i>Run Check';
     showError('Error', error.message || 'Failed to run check');
   }
 }
 
-function displayResults(data) {
+function displayResultsLegacy(data) {
   const { passed, failed, issues, totalChecked, message } = data;
   
   document.getElementById('passedCount').textContent = passed;
@@ -823,13 +1500,119 @@ function displayResults(data) {
   }
 }
 
+function displayResults(data) {
+  const passed = Number(data && data.passed) || 0;
+  const failed = Number(data && data.failed) || 0;
+  const issues = Array.isArray(data && data.issues) ? data.issues : [];
+  const unknownClassCount = Number(data && data.classAudit && data.classAudit.unknownCount) || 0;
+  document.getElementById('passedCount').textContent = String(passed);
+  document.getElementById('failedCount').textContent = String(failed);
+  stats.classList.add('show');
+  results.replaceChildren();
+
+  if (failed === 0 && passed === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.innerHTML = '<span class="material-icons">search_off</span>';
+    const message = document.createElement('p');
+    message.textContent = data && data.message || 'No components found.';
+    empty.appendChild(message);
+    results.appendChild(empty);
+  } else if (failed === 0 && unknownClassCount === 0) {
+    const success = document.createElement('div');
+    success.className = 'success-message';
+    success.style.cssText = 'text-align:center;padding:20px;color:var(--success)';
+    success.innerHTML = '<span class="material-icons" style="font-size:36px">check_circle</span>';
+    const text = document.createElement('p');
+    text.style.cssText = 'margin-top:8px;font-size:12px';
+    text.textContent = `All ${passed} checks pass!`;
+    success.appendChild(text);
+    results.appendChild(success);
+  } else {
+    const fragment = document.createDocumentFragment();
+    for (const issue of issues) {
+      const item = document.createElement('div');
+      item.className = 'result-item fail';
+      const icon = document.createElement('div');
+      icon.className = 'result-icon';
+      icon.innerHTML = '<span class="material-icons">error</span>';
+      const content = document.createElement('div');
+      content.className = 'result-content';
+      const title = document.createElement('div');
+      title.className = 'result-title';
+      const issueType = typeof issue.type === 'string' ? issue.type : 'Component';
+      title.textContent = issueType.charAt(0).toUpperCase() + issueType.slice(1);
+      content.appendChild(title);
+      const targetParts = [];
+      if (typeof issue.selector === 'string' && issue.selector) targetParts.push(`Rule: ${issue.selector}`);
+      if (typeof issue.element === 'string' && issue.element) targetParts.push(`Element: ${issue.element}`);
+      if (targetParts.length) {
+        const target = document.createElement('div');
+        target.className = 'result-desc';
+        target.style.cssText = 'margin-bottom:4px;color:var(--text-muted);font-family:monospace';
+        target.textContent = targetParts.join(' · ');
+        content.appendChild(target);
+      }
+      for (const violation of Array.isArray(issue.violations) ? issue.violations : []) {
+        const description = document.createElement('div');
+        description.className = 'result-desc';
+        description.textContent = String(violation);
+        content.appendChild(description);
+      }
+      item.append(icon, content);
+      fragment.appendChild(item);
+    }
+    results.appendChild(fragment);
+  }
+
+  if (unknownClassCount > 0) {
+    const item = document.createElement('div');
+    item.className = 'result-item fail';
+    const icon = document.createElement('div');
+    icon.className = 'result-icon';
+    icon.innerHTML = '<span class="material-icons">rule</span>';
+    const content = document.createElement('div');
+    content.className = 'result-content';
+    const title = document.createElement('div');
+    title.className = 'result-title';
+    title.textContent = `${unknownClassCount.toLocaleString()} unknown EHS class${unknownClassCount === 1 ? '' : 'es'}`;
+    const description = document.createElement('div');
+    description.className = 'result-desc';
+    description.textContent = (data.classAudit.unknownClasses || []).join(', ');
+    content.append(title, description);
+    item.append(icon, content);
+    results.appendChild(item);
+  }
+
+  const notes = [];
+  if (data && data.omittedIssueCount) notes.push(`${data.omittedIssueCount.toLocaleString()} additional issues hidden`);
+  if (data && data.omittedFixDeclarationCount) notes.push(`${data.omittedFixDeclarationCount.toLocaleString()} auto-fix declarations omitted`);
+  if (data && data.omittedElementCount) notes.push(`${data.omittedElementCount.toLocaleString()} elements skipped by safety limits`);
+  if (data && data.elementCheckLimitReached) notes.push('10,000 element-check safety limit reached');
+  if (data && data.hiddenSkippedCount) notes.push(`${data.hiddenSkippedCount.toLocaleString()} display:none elements deferred until visible`);
+  if (data && data.classAudit) {
+    const audit = data.classAudit;
+    notes.push(`${audit.usedCount.toLocaleString()} of ${audit.knownCount.toLocaleString()} EHS classes used`);
+    if (audit.unknownCount) notes.push(`${audit.unknownCount.toLocaleString()} unknown ehs-* classes`);
+    if (audit.hiddenUnknownElementCount) notes.push(`${audit.hiddenUnknownElementCount.toLocaleString()} hidden class-audit elements deferred`);
+    if (audit.omittedElementCount) notes.push(`${audit.omittedElementCount.toLocaleString()} class-bearing elements skipped by safety limits`);
+  }
+  if (notes.length) {
+    const notice = document.createElement('div');
+    notice.className = 'empty-state';
+    notice.style.cssText = 'padding:10px;margin-top:8px;font-size:10px';
+    notice.textContent = notes.join(' · ');
+    results.appendChild(notice);
+  }
+}
+
 // ========================================
 // QUALITY ANALYSIS
 // ========================================
 
 async function calculateQuality() {
   if (!lastCheckResults) {
-    await runCheck();
+    await runCheckV14();
     return;
   }
   
@@ -1055,8 +1838,10 @@ function getImprovementTips(performance, accessibility, bestPractices, seo, cons
 
 function calculateQualityScore(data) {
   const { passed, failed } = data;
-  const total = passed + failed;
-  return total > 0 ? Math.round((passed / total) * 100) : 100;
+  const classPassed = Number(data.classAudit && data.classAudit.usedCount) || 0;
+  const classFailed = Number(data.classAudit && data.classAudit.unknownCount) || 0;
+  const total = passed + failed + classPassed + classFailed;
+  return total > 0 ? Math.round(((passed + classPassed) / total) * 100) : 100;
 }
 
 // ========================================
@@ -1065,7 +1850,7 @@ function calculateQualityScore(data) {
 
 async function runAutoFix() {
   if (!lastCheckResults) {
-    await runCheck();
+    await runCheckV14();
     return;
   }
   
@@ -1077,23 +1862,20 @@ async function runAutoFix() {
   qualitySection.classList.remove('show');
   
   autoFixBtn.disabled = true;
-  autoFixBtn.innerHTML = '<span class="material-icons">hourglass_empty</span>Fixing...';
+  autoFixBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>Fixing...';
   
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     
-    // Apply fixes (content script will also do inline verification + reflow)
-    const fixResponse = await new Promise((resolve) => {
-      chrome.tabs.sendMessage(tab.id, { 
-        action: 'autoFix', 
-        components: savedComponents 
-      }, resolve);
-    });
+    const fixResponse = await sendTabMessage(tab.id, {
+      action: 'autoFix',
+      components: savedComponents
+    }, 30000);
     
     if (!fixResponse || !fixResponse.success) {
       showError('Fix Failed', 'Could not apply fixes. Please try again.');
       autoFixBtn.disabled = false;
-      autoFixBtn.innerHTML = '<span class="material-icons">auto_fix_high</span>Auto-Fix';
+      autoFixBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Auto-Fix';
       return;
     }
     
@@ -1122,16 +1904,15 @@ async function runAutoFix() {
       }
     } else {
       // Fallback: re-run full check from popup
-      showSuccess(`Auto Fix Applied! Fixed ${fixResponse.fixedCount} components.`);
-      await new Promise(r => setTimeout(r, 150));
-      await runCheck();
+      showSuccess(`Auto Fix Applied! Fixed ${fixResponse.fixedCount} elements.`);
+      await runCheckV14();
     }
     
   } catch (error) {
     showError('Error', error.message);
   } finally {
     autoFixBtn.disabled = false;
-    autoFixBtn.innerHTML = '<span class="material-icons">auto_fix_high</span>Auto-Fix';
+    autoFixBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i>Auto-Fix';
   }
 }
 
@@ -1151,6 +1932,10 @@ function showFixResults(response) {
       <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
         Fixed: ${response.fixedCount} | Remaining: ${response.verifyFailed !== undefined ? response.verifyFailed : (lastCheckResults?.failed ?? 'N/A')}
       </div>
+      ${(response.omittedFixCount || response.omittedDeclarationCount) ? `
+        <div style="font-size:10px;color:var(--warning);margin-top:4px;">
+          Safety limit: ${Number(response.omittedFixCount || 0)} fix summaries and ${Number(response.omittedDeclarationCount || 0)} declarations omitted
+        </div>` : ''}
     </div>
   `;
   
@@ -1158,7 +1943,7 @@ function showFixResults(response) {
     <div class="fix-item">
       <div class="fix-item-header">
         <span class="material-icons">check_circle</span>
-        ${fix.element}
+        ${escapeHtml(String(fix.element || 'element'))}
       </div>
       <div class="fix-code">${escapeHtml(fix.css)}</div>
     </div>
@@ -1216,43 +2001,68 @@ function exportFixResults() {
 
 async function injectContentScript(tabId) {
   try {
-    await new Promise((resolve, reject) => {
-      chrome.tabs.sendMessage(tabId, { action: 'ping' }, (response) => {
-        if (chrome.runtime.lastError) reject(chrome.runtime.lastError);
-        else resolve(response);
-      });
-    });
+    await sendTabMessage(tabId, { action: 'ping' }, 1200);
   } catch (error) {
     await chrome.scripting.executeScript({ target: { tabId: tabId }, files: ['content.js'] });
     await chrome.scripting.insertCSS({ target: { tabId: tabId }, files: ['content.css'] });
-    await new Promise(resolve => setTimeout(resolve, 100));
+    let lastError = error;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await sendTabMessage(tabId, { action: 'ping' }, 1200);
+        return;
+      } catch (pingError) {
+        lastError = pingError;
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+    }
+    throw lastError;
   }
+}
+
+function sendTabMessage(tabId, message, timeoutMs = 10000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error('The page did not respond in time.')), timeoutMs);
+    chrome.tabs.sendMessage(tabId, message, response => {
+      clearTimeout(timer);
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(response);
+    });
+  });
 }
 
 function showSuccess(message) {
   const tempDiv = document.createElement('div');
   tempDiv.style.cssText = 'text-align: center; padding: 20px; color: var(--success);';
-  tempDiv.innerHTML = `
-    <span class="material-icons" style="font-size: 36px;">check_circle</span>
-    <p style="margin-top: 8px; font-size: 12px;">${message}</p>
-  `;
-  results.innerHTML = '';
+  const icon = document.createElement('span');
+  icon.className = 'material-icons';
+  icon.style.fontSize = '36px';
+  icon.textContent = 'check_circle';
+  const text = document.createElement('p');
+  text.style.cssText = 'margin-top:8px;font-size:12px';
+  text.textContent = String(message);
+  tempDiv.append(icon, text);
+  results.replaceChildren();
   results.appendChild(tempDiv);
   resultsSection.classList.add('show');
 }
 
 function showError(title, detail) {
-  results.innerHTML = `
-    <div class="result-item fail">
-      <div class="result-icon">
-        <span class="material-icons">error</span>
-      </div>
-      <div class="result-content">
-        <div class="result-title">${title}</div>
-        <div class="result-desc">${detail}</div>
-      </div>
-    </div>
-  `;
+  const item = document.createElement('div');
+  item.className = 'result-item fail';
+  const icon = document.createElement('div');
+  icon.className = 'result-icon';
+  icon.innerHTML = '<span class="material-icons">error</span>';
+  const content = document.createElement('div');
+  content.className = 'result-content';
+  const heading = document.createElement('div');
+  heading.className = 'result-title';
+  heading.textContent = String(title);
+  const description = document.createElement('div');
+  description.className = 'result-desc';
+  description.textContent = String(detail);
+  content.append(heading, description);
+  item.append(icon, content);
+  results.replaceChildren(item);
   resultsSection.classList.add('show');
 }
 
@@ -1260,20 +2070,6 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
-}
-
-function formatHtml(html) {
-  let formatted = '';
-  let indent = 0;
-  const tab = '  ';
-  
-  html.split(/(<[^>]+>)/g).filter(s => s.trim()).forEach(node => {
-    if (node.match(/^<\/\w/)) indent = Math.max(0, indent - 1);
-    formatted += tab.repeat(indent) + node + '\n';
-    if (node.match(/^<\w[^>]*[^\/]>.*$/)) indent++;
-  });
-  
-  return formatted.trim();
 }
 
 // ========================================
