@@ -1834,7 +1834,7 @@ function displayResults(data) {
     content.className = 'result-content';
     const title = document.createElement('div');
     title.className = 'result-title';
-    title.textContent = `${unknownClassCount.toLocaleString()} unknown EHS class${unknownClassCount === 1 ? '' : 'es'}`;
+    title.textContent = `${unknownClassCount.toLocaleString()} unknown library class${unknownClassCount === 1 ? '' : 'es'}`;
     const description = document.createElement('div');
     description.className = 'result-desc';
     description.textContent = (data.classAudit.unknownClasses || []).join(', ');
@@ -1851,8 +1851,8 @@ function displayResults(data) {
   if (data && data.hiddenSkippedCount) notes.push(`${data.hiddenSkippedCount.toLocaleString()} display:none elements deferred until visible`);
   if (data && data.classAudit) {
     const audit = data.classAudit;
-    notes.push(`${audit.usedCount.toLocaleString()} of ${audit.knownCount.toLocaleString()} EHS classes used`);
-    if (audit.unknownCount) notes.push(`${audit.unknownCount.toLocaleString()} unknown ehs-* classes`);
+    notes.push(`${audit.usedCount.toLocaleString()} of ${audit.knownCount.toLocaleString()} library classes used`);
+    if (audit.unknownCount) notes.push(`${audit.unknownCount.toLocaleString()} unknown library classes`);
     if (audit.hiddenUnknownElementCount) notes.push(`${audit.hiddenUnknownElementCount.toLocaleString()} hidden class-audit elements deferred`);
     if (audit.omittedElementCount) notes.push(`${audit.omittedElementCount.toLocaleString()} class-bearing elements skipped by safety limits`);
   }

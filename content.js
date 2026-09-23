@@ -1509,6 +1509,17 @@
   function auditClassInventory(classInventory) {
     if (!Array.isArray(classInventory) || classInventory.length === 0) return null;
     const known = new Set(classInventory);
+    const namespaceCounts = new Map();
+    for (const className of known) {
+      const match = /^([a-z][a-z0-9]*)-/.exec(className);
+      if (match) namespaceCounts.set(match[1], (namespaceCounts.get(match[1]) || 0) + 1);
+    }
+    // Treat repeated prefixes in the imported catalog as library-owned
+    // namespaces. This keeps unknown-class reporting useful for any design
+    // system without baking a particular product or vendor into the checker.
+    const libraryNamespaces = new Set(
+      Array.from(namespaceCounts).filter(([, count]) => count >= 2).map(([prefix]) => prefix)
+    );
     const used = new Set();
     const unknown = new Set();
     const elements = document.querySelectorAll('[class]');
@@ -1520,10 +1531,12 @@
       const unknownClasses = [];
       for (const className of element.classList) {
         if (known.has(className)) used.add(className);
-        // Unknown-class reporting is limited to library-owned namespaces.
-        // Known Bootstrap classes are still counted, while arbitrary product
-        // classes are not incorrectly reported as framework violations.
-        else if (/^(?:ehs|md3)-/.test(className)) unknownClasses.push(className);
+        // Known unprefixed utility classes are still counted, while arbitrary
+        // product classes are not incorrectly reported as framework violations.
+        else {
+          const match = /^([a-z][a-z0-9]*)-/.exec(className);
+          if (match && libraryNamespaces.has(match[1])) unknownClasses.push(className);
+        }
       }
       if (unknownClasses.length) {
         if (isDisplayNone(element)) hiddenUnknownElementCount++;
