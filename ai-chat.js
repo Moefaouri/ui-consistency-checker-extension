@@ -31,7 +31,7 @@
     running: false, requestId: '', port: null, streamText: '', streamMessageId: '', forceRefresh: false,
     screen: 'chat', drafts: {}, allowScreenshots: true, allowDom: true, allowElementSelection: true,
     contextSize: 'balanced', fontSize: 'medium', motion: 'system', theme: 'system', connectionValid: false,
-    oneShotContext: '', previewActive: false, previewMessageId: '', useComponentLibrary: true,
+    oneShotContext: '', previewActive: false, previewMessageId: '', previewParts: { html: false, css: false, js: false }, useComponentLibrary: true,
     authModes: { openai: 'api', anthropic: 'api', google: 'api' }
   };
   const el = {};
@@ -306,7 +306,11 @@
 
   async function prepareContext(prompt) {
     const decision = chooseContext(prompt);
-    const componentReference = await buildComponentReference(prompt);
+    const selectedReferenceTerms = state.selectedElement
+      ? [state.selectedElement.tag, state.selectedElement.selector, state.selectedElement.text, state.selectedElement.html]
+        .filter(Boolean).join(' ').slice(0, 3000)
+      : '';
+    const componentReference = await buildComponentReference(`${prompt}\n${selectedReferenceTerms}`.trim());
     updateContextIndicator(decision.use, '', decision.reason);
     if (!decision.use) {
       if (!componentReference) return { context: null, screenshotDataUrl: '', usedPage: '' };
@@ -507,26 +511,37 @@
       const copy = actionButton('Copy'); copy.addEventListener('click', () => copyText(message.content, copy));
       const retry = actionButton(message.error ? 'Retry' : 'Regenerate'); retry.addEventListener('click', () => sendCurrentMessage({ retry: true }));
       actions.append(copy, retry);
-      const css = extractCss(message.content);
-      if (css) {
-        const preview = actionButton('Preview CSS');
-        const undo = actionButton('Undo preview');
-        undo.disabled = !(state.previewActive && state.previewMessageId === message.id);
-        preview.addEventListener('click', async () => {
-          if (await previewCss(css)) {
-            state.previewActive = true;
-            state.previewMessageId = message.id;
-            renderMessages();
-          }
-        });
-        undo.addEventListener('click', async () => {
-          if (await undoCssPreview()) {
-            state.previewActive = false;
-            state.previewMessageId = '';
-            renderMessages();
-          }
-        });
-        actions.append(preview, undo);
+      const bundle = extractFrontendBundle(message.content);
+      if (bundle.html || bundle.css || bundle.js) {
+        const active = state.previewActive && state.previewMessageId === message.id;
+        const availableParts = ['html', 'css'].filter(part => Boolean(bundle[part]));
+        for (const part of availableParts) {
+          const applied = active && state.previewParts[part];
+          const labels = [`Apply ${part.toUpperCase()}`, `Undo ${part.toUpperCase()}`];
+          const button = actionButton(labels[applied ? 1 : 0]);
+          button.classList.toggle('active', applied);
+          button.title = `Apply or remove the proposed ${part.toUpperCase()}`;
+          button.addEventListener('click', () => toggleFrontendPart(message, bundle, part));
+          actions.appendChild(button);
+        }
+        if (bundle.js) {
+          const copyJs = actionButton('Copy JS');
+          copyJs.title = 'Copy the JavaScript for review. The extension never executes AI-generated JavaScript.';
+          copyJs.addEventListener('click', async () => {
+            await copyText(bundle.js, copyJs);
+            setStatus('JavaScript copied. Review it before pasting it into DevTools Console. The extension did not execute it.');
+          });
+          actions.appendChild(copyJs);
+        }
+        if (availableParts.length > 1) {
+          const applyAll = actionButton('Apply all');
+          applyAll.addEventListener('click', () => applyFrontendBundle(message, bundle, Object.fromEntries(availableParts.map(part => [part, true]))));
+          actions.appendChild(applyAll);
+        }
+        const undoAll = actionButton('Undo all');
+        undoAll.disabled = !active;
+        undoAll.addEventListener('click', () => clearFrontendPreview());
+        actions.appendChild(undoAll);
       }
       if (message.error && message.recovery === 'context') {
         const reduced = actionButton('Retry with reduced context'); reduced.addEventListener('click', () => { state.oneShotContext = 'compact'; sendCurrentMessage({ retry: true }); });
@@ -795,6 +810,81 @@
       return true;
     } catch (error) { setStatus(error.message, true); return false; }
   }
+  async function toggleFrontendPart(message, bundle, part) {
+    const current = state.previewActive && state.previewMessageId === message.id
+      ? { ...state.previewParts }
+      : { html: false, css: false, js: false };
+    current[part] = !current[part];
+    if (!current.html && !current.css && !current.js) {
+      await clearFrontendPreview();
+      return;
+    }
+    await applyFrontendBundle(message, bundle, current);
+  }
+  async function applyFrontendBundle(message, rawBundle, parts) {
+    const bundle = {
+      ...rawBundle,
+      selector: rawBundle.selector || state.selectedElement?.selector || 'body',
+      mode: rawBundle.mode || (rawBundle.selector || state.selectedElement?.selector ? 'replace' : 'append')
+    };
+    try {
+      const tab = await activeWebTab(); await ensureContentScript(tab.id);
+      const response = await tabMessage(tab.id, {
+        action: 'previewAIFrontend',
+        bundle,
+        parts: { html: parts.html === true, css: parts.css === true, js: false },
+        selectedSelector: state.selectedElement?.selector || ''
+      }, 10000);
+      if (!response?.success) throw new Error(response?.error || 'The frontend preview could not be applied.');
+      state.previewActive = true;
+      state.previewMessageId = message.id;
+      state.previewParts = { html: Boolean(response.parts?.html), css: Boolean(response.parts?.css), js: false };
+      if (response.selectedElement) state.selectedElement = response.selectedElement;
+      state.contextCache = null;
+      state.forceRefresh = true;
+      renderAttachment();
+      const applied = Object.entries(state.previewParts).filter(([, value]) => value).map(([key]) => key.toUpperCase()).join(' + ');
+      setStatus(`${applied} preview applied. Use the matching Undo button or Undo all to restore the page.`);
+      renderMessages();
+      return true;
+    } catch (error) { setStatus(error.message, true); return false; }
+  }
+  async function clearFrontendPreview() {
+    try {
+      const tab = await activeWebTab(); await ensureContentScript(tab.id);
+      const response = await tabMessage(tab.id, { action: 'clearAIFrontendPreview' }, 10000);
+      if (!response?.success) throw new Error(response?.error || 'The frontend preview could not be removed.');
+      state.previewActive = false;
+      state.previewMessageId = '';
+      state.previewParts = { html: false, css: false, js: false };
+      if (response.selectedElement) state.selectedElement = response.selectedElement;
+      state.contextCache = null;
+      state.forceRefresh = true;
+      renderAttachment();
+      setStatus('All preview changes were removed. The original page is restored.');
+      renderMessages();
+      return true;
+    } catch (error) { setStatus(error.message, true); return false; }
+  }
+  function extractFrontendBundle(text) {
+    const source = String(text || '');
+    const readBlocks = language => Array.from(source.matchAll(new RegExp('```(?:' + language + ')\\s*\\n?([\\s\\S]*?)```', 'gi')))
+      .map(match => match[1].trim()).filter(Boolean).join('\n\n');
+    const metadataText = readBlocks('preview|ui-preview');
+    let metadata = {};
+    if (metadataText) {
+      try { metadata = JSON.parse(metadataText); } catch (error) { metadata = {}; }
+    }
+    const html = readBlocks('html').slice(0, 80000);
+    const css = readBlocks('css').slice(0, 60000);
+    const js = readBlocks('javascript|js').slice(0, 30000);
+    return {
+      selector: typeof metadata.selector === 'string' ? metadata.selector.trim().slice(0, 500) : '',
+      mode: ['replace', 'append', 'before', 'after'].includes(metadata.mode) ? metadata.mode : '',
+      title: typeof metadata.title === 'string' ? metadata.title.trim().slice(0, 120) : '',
+      html, css, js
+    };
+  }
   function extractCss(text) { return Array.from(String(text).matchAll(/```css\s*([\s\S]*?)```/gi)).map(match => match[1].trim()).filter(Boolean).join('\n\n').slice(0, 60000); }
 
   function renderMarkdown(value) {
@@ -809,7 +899,7 @@
   }
 
   function enhanceCodeBlocks(root) { root.querySelectorAll('.ai-code-copy').forEach(button => button.addEventListener('click', () => { const pre = button.closest('.ai-code-wrap')?.querySelector('pre'); copyText(pre?.dataset.raw || '', button); })); }
-  function highlightCode(value) { return value.replace(/(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;)/g, '<span class="str">$1</span>').replace(/\b(const|let|var|function|return|if|else|for|class|display|color|background|position|grid|flex)\b/g, '<span class="kw">$1</span>').replace(/\b(\d+(?:\.\d+)?(?:px|rem|em|%|vh|vw)?)\b/g, '<span class="num">$1</span>'); }
+  function highlightCode(value) { return value; }
   async function copyText(value, button) { try { await navigator.clipboard.writeText(value); const original = button.textContent; button.textContent = 'Copied'; setTimeout(() => { button.textContent = original; }, 1200); } catch (error) { setStatus('Chrome could not copy that text.', true); } }
 
   function iconButton(icon, label) { const button = document.createElement('button'); button.type = 'button'; button.className = 'ai-toolbar-btn'; button.setAttribute('aria-label', label); const glyph = document.createElement('span'); glyph.className = 'material-icons'; glyph.textContent = icon; button.appendChild(glyph); return button; }

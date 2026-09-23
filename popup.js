@@ -101,6 +101,18 @@ const checkBtn = document.getElementById('checkBtn');
 const qualityBtn = document.getElementById('qualityBtn');
 const autoFixBtn = document.getElementById('autoFixBtn');
 const gridBtn = document.getElementById('gridBtn');
+const responsivePresetBtns = document.querySelectorAll('.responsive-preset');
+const responsiveStatus = document.getElementById('responsiveStatus');
+const responsiveCustomWidth = document.getElementById('responsiveCustomWidth');
+const responsiveCustomHeight = document.getElementById('responsiveCustomHeight');
+const responsiveCustomApply = document.getElementById('responsiveCustomApply');
+const responsiveAuditSummary = document.getElementById('responsiveAuditSummary');
+const responsiveErrorCount = document.getElementById('responsiveErrorCount');
+const responsiveWarningCount = document.getElementById('responsiveWarningCount');
+const responsiveAuditSuccess = document.getElementById('responsiveAuditSuccess');
+const responsiveRescanBtn = document.getElementById('responsiveRescanBtn');
+const responsiveClearBtn = document.getElementById('responsiveClearBtn');
+const responsiveIssues = document.getElementById('responsiveIssues');
 const addComponentBtn = document.getElementById('addComponentBtn');
 const exportBtn = document.getElementById('exportBtn');
 const importBtn = document.getElementById('importBtn');
@@ -303,9 +315,7 @@ async function applySidePanelLayout() {
     if (layout && (layout.side === 'left' || layout.side === 'right')) {
       document.body.dataset.panelSide = layout.side;
     }
-  } catch (error) {
-    console.warn('[UI Checker] Could not read side panel placement:', error);
-  }
+  } catch (error) {}
 }
 
 // ========================================
@@ -403,6 +413,11 @@ function setupEventListeners() {
   checkBtn.addEventListener('click', runCheckV14);
   qualityBtn.addEventListener('click', calculateQuality);
   autoFixBtn.addEventListener('click', runAutoFix);
+  responsivePresetBtns.forEach(button => button.addEventListener('click', () => applyResponsiveViewport(button)));
+  responsiveCustomApply.addEventListener('click', () => applyResponsiveViewport(responsiveCustomApply, true));
+  responsiveRescanBtn.addEventListener('click', rescanResponsiveIssues);
+  responsiveClearBtn.addEventListener('click', clearResponsiveHighlights);
+  responsiveIssues.addEventListener('click', focusResponsiveIssue);
   
   // Grid toggle
   gridBtn.addEventListener('click', toggleGrid);
@@ -449,6 +464,250 @@ function activatePanelTab(targetTab, remember = false) {
   componentsTab.classList.toggle('active', selected === 'components');
   aiTab.classList.toggle('active', selected === 'ai');
   if (remember) chrome.storage.local.set({ activePanelTab: selected });
+}
+
+async function applyResponsiveViewport(button, custom = false) {
+  if (!button) return;
+  responsivePresetBtns.forEach(item => { item.disabled = true; });
+  responsiveCustomApply.disabled = true;
+  try {
+    const restoring = button.dataset.responsiveRestore === 'true';
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('No inspectable browser tab was found.');
+    if (/^(chrome|edge|about|chrome-extension|devtools|view-source):/i.test(tab.url || '')) {
+      throw new Error('Open a normal webpage before using responsive check.');
+    }
+
+    if (restoring) {
+      const restored = await sendRuntimeMessage({ action: 'responsiveRestore', tabId: tab.id }, 15000);
+      if (!restored?.success) throw new Error(restored?.error || 'The content viewport could not be restored.');
+      await injectContentScript(tab.id);
+      await sendTabMessage(tab.id, { action: 'clearResponsiveAudit' }, 5000).catch(() => null);
+      responsivePresetBtns.forEach(item => item.classList.remove('active'));
+      resetResponsiveAuditResults();
+      setResponsiveStatus('Normal page viewport restored. The browser window was not changed.');
+      return;
+    }
+
+    const targetWidth = Number(custom ? responsiveCustomWidth.value : button.dataset.responsiveWidth);
+    const targetHeight = Number(custom ? responsiveCustomHeight.value : button.dataset.responsiveHeight);
+    if (!Number.isFinite(targetWidth) || !Number.isFinite(targetHeight)) throw new Error('The selected viewport size is invalid.');
+    const emulated = await sendRuntimeMessage({ action: 'responsiveEmulate', tabId: tab.id, width: targetWidth, height: targetHeight }, 15000);
+    if (!emulated?.success) throw new Error(emulated?.error || 'The content viewport could not be emulated.');
+    await injectContentScript(tab.id);
+    await waitForViewport(250);
+    const actual = await sendTabMessage(tab.id, { action: 'getViewportSize' }, 5000);
+    if (!actual?.success) throw new Error(actual?.error || 'The emulated viewport could not be measured.');
+    responsivePresetBtns.forEach(item => item.classList.toggle('active', !custom && item === button));
+    const label = custom ? 'Custom' : button.textContent.trim();
+    setResponsiveStatus(`${label}: ${actual.width} × ${actual.height}px content viewport. Scanning responsive risks…`);
+    if (savedComponents.length) await runCheckV14();
+    const audit = await runResponsiveAudit(tab.id);
+    const summary = audit.total
+      ? `${audit.total} responsive issue${audit.total === 1 ? '' : 's'} found and highlighted.`
+      : 'No obvious overflow, clipping, target-size, or text-size issues found.';
+    setResponsiveStatus(`${label}: ${actual.width} × ${actual.height}px. ${summary}`);
+  } catch (error) {
+    setResponsiveStatus(error.message || 'The viewport could not be changed.', true);
+  } finally {
+    responsivePresetBtns.forEach(item => { item.disabled = false; });
+    responsiveCustomApply.disabled = false;
+  }
+}
+
+async function runResponsiveAudit(tabId) {
+  const audit = await sendTabMessage(tabId, { action: 'auditResponsiveLayout' }, 15000);
+  if (!audit?.success) throw new Error(audit?.error || 'The responsive layout could not be audited.');
+  renderResponsiveAudit(audit);
+  return audit;
+}
+
+function renderResponsiveAudit(audit) {
+  responsiveAuditSummary.hidden = false;
+  responsiveErrorCount.textContent = String(audit.errors || 0);
+  responsiveWarningCount.textContent = String(audit.warnings || 0);
+  responsiveAuditSuccess.hidden = Number(audit.total) !== 0;
+  responsiveIssues.replaceChildren();
+  for (const issue of Array.isArray(audit.issues) ? audit.issues : []) {
+    const item = document.createElement('li');
+    const issueButton = document.createElement('button');
+    issueButton.type = 'button';
+    issueButton.className = `result-item responsive-issue ${issue.severity === 'error' ? 'fail' : 'warning'}`;
+    issueButton.dataset.responsiveIssueIndex = String(issue.index);
+    const icon = document.createElement('div');
+    icon.className = 'result-icon';
+    icon.innerHTML = `<span class="material-icons">${issue.severity === 'error' ? 'error' : 'warning'}</span>`;
+    const content = document.createElement('div');
+    content.className = 'result-content';
+    const title = document.createElement('div');
+    title.className = 'result-title';
+    title.textContent = String(issue.type || 'Responsive issue').split(',')[0].replace(/-/g, ' ').replace(/^./, value => value.toUpperCase());
+    const selector = document.createElement('div');
+    selector.className = 'result-desc responsive-target';
+    selector.textContent = `Element: ${issue.selector || 'Page element'}`;
+    const message = document.createElement('span');
+    message.className = 'result-desc';
+    message.textContent = issue.message || issue.type;
+    const heading = document.createElement('div');
+    heading.className = 'responsive-issue-heading';
+    const severity = document.createElement('span');
+    severity.className = 'responsive-severity';
+    severity.textContent = issue.severity === 'error' ? 'Error' : 'Warning';
+    heading.append(title, severity);
+    content.append(heading, selector, message);
+    issueButton.append(icon, content);
+    item.appendChild(issueButton);
+    responsiveIssues.appendChild(item);
+  }
+  responsiveIssues.hidden = responsiveIssues.children.length === 0;
+}
+
+function resetResponsiveAuditResults() {
+  responsiveAuditSummary.hidden = true;
+  responsiveAuditSuccess.hidden = true;
+  responsiveIssues.hidden = true;
+  responsiveIssues.replaceChildren();
+}
+
+async function rescanResponsiveIssues() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) throw new Error('No inspectable browser tab was found.');
+    await injectContentScript(tab.id);
+    const audit = await runResponsiveAudit(tab.id);
+    setResponsiveStatus(audit.total ? `${audit.total} responsive issues highlighted.` : 'No obvious responsive issues found.');
+  } catch (error) {
+    setResponsiveStatus(error.message || 'The page could not be re-scanned.', true);
+  }
+}
+
+async function clearResponsiveHighlights() {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab?.id) await sendTabMessage(tab.id, { action: 'clearResponsiveAudit' }, 5000);
+    resetResponsiveAuditResults();
+    setResponsiveStatus('Responsive highlights cleared. The emulated content size is still active.');
+  } catch (error) {
+    setResponsiveStatus(error.message || 'Highlights could not be cleared.', true);
+  }
+}
+
+async function focusResponsiveIssue(event) {
+  const issueButton = event.target.closest('[data-responsive-issue-index]');
+  if (!issueButton) return;
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id) return;
+    await sendTabMessage(tab.id, { action: 'focusResponsiveIssue', index: Number(issueButton.dataset.responsiveIssueIndex) }, 5000);
+  } catch (error) {
+    setResponsiveStatus(error.message || 'The highlighted element is no longer available.', true);
+  }
+}
+
+async function applyResponsiveViewportLegacy(button) {
+  if (!button || !chrome.windows) {
+    setResponsiveStatus('This browser does not expose window resizing to the extension.', true);
+    return;
+  }
+  responsivePresetBtns.forEach(item => { item.disabled = true; });
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || tab.windowId == null) throw new Error('No inspectable browser tab was found.');
+    if (/^(chrome|edge|about|chrome-extension|devtools|view-source):/i.test(tab.url || '')) {
+      throw new Error('Open a normal webpage before using responsive check.');
+    }
+    const currentWindow = await getBrowserWindow(tab.windowId);
+    const stored = await chrome.storage.session.get(['responsiveOriginalWindow']);
+
+    if (button.dataset.responsiveRestore === 'true') {
+      const original = stored.responsiveOriginalWindow;
+      if (!original || original.id !== tab.windowId) throw new Error('No saved viewport is available to restore.');
+      if (currentWindow.state !== 'normal') await updateBrowserWindow(tab.windowId, { state: 'normal' });
+      await updateBrowserWindow(tab.windowId, {
+        left: original.left,
+        top: original.top,
+        width: original.width,
+        height: original.height
+      });
+      if (original.state && original.state !== 'normal') await updateBrowserWindow(tab.windowId, { state: original.state });
+      await chrome.storage.session.remove('responsiveOriginalWindow');
+      responsivePresetBtns.forEach(item => item.classList.remove('active'));
+      setResponsiveStatus('Original browser size restored.');
+      return;
+    }
+
+    const targetWidth = Number(button.dataset.responsiveWidth);
+    const targetHeight = Number(button.dataset.responsiveHeight);
+    if (!Number.isFinite(targetWidth) || !Number.isFinite(targetHeight)) throw new Error('The selected viewport preset is invalid.');
+    if (!stored.responsiveOriginalWindow || stored.responsiveOriginalWindow.id !== tab.windowId) {
+      await chrome.storage.session.set({
+        responsiveOriginalWindow: {
+          id: tab.windowId,
+          state: currentWindow.state,
+          left: currentWindow.left,
+          top: currentWindow.top,
+          width: currentWindow.width,
+          height: currentWindow.height
+        }
+      });
+    }
+
+    await injectContentScript(tab.id);
+    if (currentWindow.state !== 'normal') {
+      await updateBrowserWindow(tab.windowId, { state: 'normal' });
+      await waitForViewport(180);
+    }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const viewport = await sendTabMessage(tab.id, { action: 'getViewportSize' }, 5000);
+      if (!viewport?.success) throw new Error(viewport?.error || 'The page viewport could not be measured.');
+      const widthDelta = targetWidth - Number(viewport.width);
+      const heightDelta = targetHeight - Number(viewport.height);
+      if (Math.abs(widthDelta) <= 2 && Math.abs(heightDelta) <= 2) break;
+      const outer = await getBrowserWindow(tab.windowId);
+      await updateBrowserWindow(tab.windowId, {
+        width: Math.max(500, Math.round(outer.width + widthDelta)),
+        height: Math.max(400, Math.round(outer.height + heightDelta))
+      });
+      await waitForViewport(180);
+    }
+
+    const actual = await sendTabMessage(tab.id, { action: 'getViewportSize' }, 5000);
+    if (!actual?.success) throw new Error(actual?.error || 'The resized viewport could not be measured.');
+    responsivePresetBtns.forEach(item => item.classList.toggle('active', item === button));
+    const exact = Math.abs(actual.width - targetWidth) <= 3 && Math.abs(actual.height - targetHeight) <= 3;
+    setResponsiveStatus(`${button.textContent.trim()}: ${actual.width} × ${actual.height}px${exact ? '' : ' (limited by the current screen)'}. ${savedComponents.length ? 'Refreshing component checks…' : 'Import components to run checks at this size.'}`);
+    if (savedComponents.length) {
+      await runCheckV14();
+      setResponsiveStatus(`${button.textContent.trim()}: ${actual.width} × ${actual.height}px. Checks now use this viewport and its active media queries.`);
+    }
+  } catch (error) {
+    setResponsiveStatus(error.message || 'The viewport could not be changed.', true);
+  } finally {
+    responsivePresetBtns.forEach(item => { item.disabled = false; });
+  }
+}
+
+function getBrowserWindow(windowId) {
+  return new Promise((resolve, reject) => {
+    chrome.windows.get(windowId, {}, windowInfo => {
+      if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+      else resolve(windowInfo);
+    });
+  });
+}
+
+function updateBrowserWindow(windowId, updateInfo) {
+  throw new Error('Browser-window resizing has been retired. Use content viewport emulation.');
+}
+
+function waitForViewport(milliseconds) {
+  return new Promise(resolve => setTimeout(resolve, milliseconds));
+}
+
+function setResponsiveStatus(message, error = false) {
+  if (!responsiveStatus) return;
+  responsiveStatus.textContent = message;
+  responsiveStatus.classList.toggle('error', error);
 }
 
 chrome.runtime.onMessage.addListener(request => {
@@ -829,7 +1088,7 @@ function setAIStatus(message, isError = false) {
 
 function sendRuntimeMessage(message, timeoutMs = 100000) {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('The AI request timed out.')), timeoutMs);
+    const timer = setTimeout(() => reject(new Error('The extension request timed out.')), timeoutMs);
     chrome.runtime.sendMessage(message, response => {
       clearTimeout(timer);
       if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));

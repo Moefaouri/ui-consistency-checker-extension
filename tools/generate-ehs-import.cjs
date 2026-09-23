@@ -284,4 +284,3 @@ const output = {
 };
 
 fs.writeFileSync(outputPath, `${JSON.stringify(output, null, 2)}\n`);
-console.log(`Generated ${components.length} components, ${classes.length} classes, and ${Object.keys(tokens).length} tokens.`);

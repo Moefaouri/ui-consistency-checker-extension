@@ -4,9 +4,10 @@
 
 (function() {
   'use strict';
-  
-  if (window.uiCheckerInjected) return;
-  window.uiCheckerInjected = true;
+
+  const CONTENT_SCRIPT_VERSION = '1.5.1-responsive-audit-2';
+  if (window.uiCheckerInjected === CONTENT_SCRIPT_VERSION) return;
+  window.uiCheckerInjected = CONTENT_SCRIPT_VERSION;
 
   const MAX_REPORTED_ISSUES = 250;
   const MAX_VIOLATIONS_PER_ISSUE = 12;
@@ -23,9 +24,15 @@
   const AI_MAX_CSS_CHARS = 70000;
   const AI_MAX_TOKENS = 240;
   const AI_PREVIEW_STYLE_ID = 'ui-checker-ai-preview';
+  const AI_FRONTEND_PREVIEW_ID = 'ui-checker-ai-frontend-preview';
   const AI_PICKER_STYLE_ID = 'ui-checker-ai-picker-style';
+  const RESPONSIVE_AUDIT_OVERLAY_ID = 'ui-checker-responsive-audit';
   let aiPickerCleanup = null;
+  let aiSelectedElement = null;
+  let aiFrontendPreview = null;
+  let aiCssPreviewMutations = [];
   let aiPageMutationVersion = 0;
+  let responsiveAuditTargets = [];
   const CSS_WIDE_KEYWORDS = /^(unset|initial|inherit|revert|revert-layer|normal)$/i;
   const UNTESTABLE_SELECTOR = /:(hover|focus|focus-within|focus-visible|active|visited|has\(|-webkit)|::[a-z-]+/i;
   const parsedCssCache = new Map();
@@ -43,11 +50,7 @@
   let declarationExpansionStyle = null;
   const colorHexCache = new Map();
 
-  console.log('[UI Checker] Content script injected');
-
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    console.log('[UI Checker] Received message:', request.action);
-    
     try {
       if (request.action === 'ping') {
         sendResponse({ success: true, message: 'pong' });
@@ -95,13 +98,33 @@
         const css = applyAICssPreview(request.css);
         sendResponse({ success: true, bytes: css.length });
         return true;
+      } else if (request.action === 'previewAIFrontend') {
+        const result = applyAIFrontendPreview(request.bundle || {}, request.parts || {}, request.selectedSelector || '');
+        sendResponse({ success: true, ...result });
+        return true;
+      } else if (request.action === 'clearAIFrontendPreview') {
+        const selectedElement = clearAIFrontendPreview();
+        sendResponse({ success: true, selectedElement });
+        return true;
       } else if (request.action === 'clearAICssPreview') {
         clearAICssPreview();
         sendResponse({ success: true });
         return true;
+      } else if (request.action === 'getViewportSize') {
+        sendResponse({ success: true, width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio || 1 });
+        return true;
+      } else if (request.action === 'auditResponsiveLayout') {
+        sendResponse({ success: true, ...auditResponsiveLayout() });
+        return true;
+      } else if (request.action === 'clearResponsiveAudit') {
+        clearResponsiveAudit();
+        sendResponse({ success: true });
+        return true;
+      } else if (request.action === 'focusResponsiveIssue') {
+        sendResponse({ success: focusResponsiveIssue(request.index) });
+        return true;
       }
     } catch (error) {
-      console.error('[UI Checker] Error:', error);
       sendResponse({ success: false, error: error.message });
       return true;
     }
@@ -122,11 +145,14 @@
     const capturedText = new Set();
     const hasArticleRoot = Boolean(document.querySelector('main,article,[role="main"]'));
     const rootStyles = window.getComputedStyle(document.documentElement);
+    const bodyStyles = document.body ? window.getComputedStyle(document.body) : null;
     const tokens = {};
-    for (const property of Array.from(rootStyles)) {
-      if (!property.startsWith('--') || Object.keys(tokens).length >= AI_MAX_TOKENS) continue;
-      const value = sanitizeCSSValue(rootStyles.getPropertyValue(property));
-      if (value) tokens[property] = value.slice(0, 300);
+    for (const source of [rootStyles, bodyStyles].filter(Boolean)) {
+      for (const property of Array.from(source)) {
+        if (!property.startsWith('--') || Object.keys(tokens).length >= AI_MAX_TOKENS) continue;
+        const value = sanitizeCSSValue(source.getPropertyValue(property));
+        if (value) tokens[property] = value.slice(0, 300);
+      }
     }
 
     const elements = [];
@@ -224,10 +250,182 @@
         ]
       },
       designTokens: tokens,
+      theme: captureAIThemeProfile(rootStyles, bodyStyles),
       elements,
       stylesheets: stylesheetResult.sources,
       authoredCSS: stylesheetResult.css
     };
+  }
+
+  function captureAIThemeProfile(rootStyles, bodyStyles) {
+    const styleSummary = styles => styles ? pickAIComputedStyles(styles) : undefined;
+    const samples = {};
+    const sampleSelectors = {
+      button: 'button,.btn,[role="button"]',
+      input: 'input:not([type="hidden"]),textarea,select',
+      card: '.card,[class*="card"],[class*="panel"],article',
+      navigation: 'nav,[role="navigation"]'
+    };
+    for (const [name, selector] of Object.entries(sampleSelectors)) {
+      const element = Array.from(document.querySelectorAll(selector)).find(candidate => {
+        const rect = candidate.getBoundingClientRect();
+        const styles = window.getComputedStyle(candidate);
+        return rect.width > 0 && rect.height > 0 && styles.display !== 'none' && styles.visibility !== 'hidden';
+      });
+      if (element) samples[name] = { selector: describeAIElement(element), style: styleSummary(window.getComputedStyle(element)) };
+    }
+    return {
+      preferredScheme: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light',
+      root: {
+        classes: Array.from(document.documentElement.classList).slice(0, 20),
+        dataTheme: document.documentElement.getAttribute('data-theme') || undefined,
+        style: styleSummary(rootStyles)
+      },
+      body: document.body ? {
+        classes: Array.from(document.body.classList).slice(0, 20),
+        dataTheme: document.body.getAttribute('data-theme') || undefined,
+        style: styleSummary(bodyStyles)
+      } : undefined,
+      samples
+    };
+  }
+
+  function auditResponsiveLayout() {
+    clearResponsiveAudit();
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const issueRecords = [];
+    const documentWidth = Math.max(document.documentElement.scrollWidth, document.body?.scrollWidth || 0);
+
+    const addIssue = (element, type, severity, message) => {
+      if (!(element instanceof Element)) return;
+      let record = issueRecords.find(item => item.element === element);
+      if (!record) {
+        record = { element, types: [], severity, messages: [] };
+        issueRecords.push(record);
+      }
+      if (!record.types.includes(type)) record.types.push(type);
+      if (!record.messages.includes(message)) record.messages.push(message);
+      if (severity === 'error') record.severity = 'error';
+    };
+
+    const candidates = Array.from((document.body || document.documentElement).querySelectorAll('*')).slice(0, 6000);
+    for (const element of candidates) {
+      if (element.closest?.(`#${RESPONSIVE_AUDIT_OVERLAY_ID},#${AI_PICKER_STYLE_ID},#ui-checker-ai-picker-label`)) continue;
+      const styles = window.getComputedStyle(element);
+      if (styles.display === 'none' || styles.visibility === 'hidden' || Number(styles.opacity) === 0) continue;
+      const rect = element.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (rect.bottom < 0 || rect.top > viewportHeight) continue;
+
+      const outsideLeft = rect.left < -2;
+      const outsideRight = rect.right > viewportWidth + 2;
+      if ((outsideLeft || outsideRight) && styles.position !== 'fixed' && !hasAccessibleHorizontalScroll(element)) {
+        const amount = Math.ceil(outsideLeft ? Math.abs(rect.left) : rect.right - viewportWidth);
+        addIssue(element, 'viewport-overflow', 'error', `Extends ${amount}px outside the viewport.`);
+      }
+
+      const overflowX = styles.overflowX;
+      if (element.clientWidth > 0 && element.scrollWidth > element.clientWidth + 2 && /hidden|clip/.test(overflowX) && !hasAccessibleHorizontalScroll(element.parentElement)) {
+        addIssue(element, 'clipped-content', 'error', `Content is clipped by ${Math.round(element.scrollWidth - element.clientWidth)}px.`);
+      }
+
+      const interactive = element.matches('button,input:not([type="hidden"]),select,textarea,[role="button"],[role="link"],a[href]');
+      const inlineTextLink = element.matches('a[href]') && styles.display === 'inline' && Boolean(element.parentElement?.textContent?.trim());
+      if (interactive && !inlineTextLink && (rect.width < 24 || rect.height < 24)) {
+        addIssue(element, 'small-target', 'warning', `Interactive target is ${Math.round(rect.width)} × ${Math.round(rect.height)}px; use at least 24 × 24px.`);
+      }
+
+      const directText = Array.from(element.childNodes).some(node => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+      const fontSize = Number.parseFloat(styles.fontSize);
+      if (directText && !element.closest('pre,code') && Number.isFinite(fontSize) && fontSize < 12) {
+        addIssue(element, 'small-text', 'warning', `Text is ${fontSize}px and may be difficult to read.`);
+      }
+
+      if (issueRecords.length >= 160) break;
+    }
+
+    const overlay = document.createElement('div');
+    overlay.id = RESPONSIVE_AUDIT_OVERLAY_ID;
+    overlay.setAttribute('aria-hidden', 'true');
+    overlay.style.cssText = 'position:absolute;inset:0;z-index:2147483646;pointer-events:none;contain:layout style;';
+    (document.body || document.documentElement).appendChild(overlay);
+
+    responsiveAuditTargets = issueRecords.slice(0, 100).map((record, index) => {
+      const marker = document.createElement('div');
+      marker.dataset.responsiveIssue = String(index);
+      marker.style.cssText = 'position:absolute;box-sizing:border-box;pointer-events:none;border:2px solid #ffb4ab;background:rgba(255,180,171,.08);';
+      if (record.severity !== 'error') marker.style.borderColor = '#f7c56b';
+      const badge = document.createElement('span');
+      badge.textContent = String(index + 1);
+      badge.style.cssText = 'position:absolute;top:-11px;left:-2px;min-width:20px;height:20px;padding:0 5px;box-sizing:border-box;border-radius:10px;color:#15181d;background:#ffb4ab;font:700 11px/20px Arial,sans-serif;text-align:center;';
+      if (record.severity !== 'error') badge.style.background = '#f7c56b';
+      marker.appendChild(badge);
+      overlay.appendChild(marker);
+      positionResponsiveMarker(marker, record.element);
+      return { ...record, marker };
+    });
+
+    const issues = responsiveAuditTargets.map((record, index) => ({
+      index,
+      selector: describeAIElement(record.element),
+      type: record.types.join(', '),
+      severity: record.severity,
+      message: record.messages.join(' '),
+      box: (() => {
+        const rect = record.element.getBoundingClientRect();
+        return { width: roundAI(rect.width), height: roundAI(rect.height) };
+      })()
+    }));
+    return {
+      viewport: { width: viewportWidth, height: viewportHeight },
+      documentWidth,
+      total: issueRecords.length,
+      highlighted: issues.length,
+      errors: issues.filter(issue => issue.severity === 'error').length,
+      warnings: issues.filter(issue => issue.severity === 'warning').length,
+      truncated: issueRecords.length > issues.length,
+      issues
+    };
+  }
+
+  function hasAccessibleHorizontalScroll(element) {
+    let current = element;
+    while (current && current !== document.documentElement) {
+      const styles = window.getComputedStyle(current);
+      if (/(?:auto|scroll)/.test(styles.overflowX) && current.scrollWidth > current.clientWidth + 2) return true;
+      current = current.parentElement;
+    }
+    return false;
+  }
+
+  function positionResponsiveMarker(marker, element) {
+    if (!marker || !element?.isConnected) return;
+    const rect = element.getBoundingClientRect();
+    const visibleLeft = Math.max(0, rect.left);
+    const visibleRight = Math.min(window.innerWidth, rect.right);
+    const visibleTop = Math.max(0, rect.top);
+    const visibleBottom = Math.min(window.innerHeight, rect.bottom);
+    marker.style.left = `${visibleLeft + window.scrollX}px`;
+    marker.style.top = `${visibleTop + window.scrollY}px`;
+    marker.style.width = `${Math.max(2, visibleRight - visibleLeft)}px`;
+    marker.style.height = `${Math.max(2, visibleBottom - visibleTop)}px`;
+  }
+
+  function focusResponsiveIssue(value) {
+    const index = Number(value);
+    const record = Number.isInteger(index) ? responsiveAuditTargets[index] : null;
+    if (!record?.element?.isConnected) return false;
+    responsiveAuditTargets.forEach(item => { if (item.marker) item.marker.style.boxShadow = ''; });
+    record.element.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+    record.marker.style.boxShadow = '0 0 0 4px rgba(139,208,239,.8),0 0 24px rgba(139,208,239,.7)';
+    requestAnimationFrame(() => positionResponsiveMarker(record.marker, record.element));
+    return true;
+  }
+
+  function clearResponsiveAudit() {
+    document.getElementById(RESPONSIVE_AUDIT_OVERLAY_ID)?.remove();
+    responsiveAuditTargets = [];
   }
 
   function isAIScreenshotSafe() {
@@ -284,7 +482,7 @@
         break;
       }
       const classes = Array.from(current.classList || [])
-        .filter(name => name && !name.startsWith('ui-check-'))
+        .filter(name => name && !/^ui-check(?:er)?-/i.test(name))
         .slice(0, 5)
         .map(sanitizeAIIdentifier)
         .filter(Boolean);
@@ -423,6 +621,8 @@
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+      target.classList.remove('ui-checker-ai-picked-hover');
+      aiSelectedElement = target;
       const element = captureAISelectedElement(target);
       stopAIElementPicker();
       chrome.runtime.sendMessage({ action: 'aiElementSelected', element }).catch(() => {});
@@ -453,7 +653,7 @@
     cleanup();
   }
 
-  function captureAISelectedElement(element) {
+  function captureAISelectedElement(element, options = {}) {
     const rect = element.getBoundingClientRect();
     const styles = window.getComputedStyle(element);
     const clone = element.cloneNode(true);
@@ -473,12 +673,19 @@
     }
     return {
       selector: describeAIElement(element),
+      previewGenerated: options.previewGenerated === true,
       tag: element.tagName.toLowerCase(),
       text: isSensitiveFormControl(element) ? '' : redactSensitiveText((element.innerText || '').replace(/\s+/g, ' ').trim()).slice(0, 1000),
       html: redactSensitiveText(clone.outerHTML).slice(0, 10000),
       box: { x: roundAI(rect.x + scrollX), y: roundAI(rect.y + scrollY), width: roundAI(rect.width), height: roundAI(rect.height) },
       semantics: collectAISemantics(element),
       style: pickAIComputedStyles(styles),
+      descendantStyles: [element, ...Array.from(element.querySelectorAll('*')).slice(0, 29)].map(node => ({
+        selector: describeAIElement(node),
+        tag: node.tagName.toLowerCase(),
+        style: pickAIComputedStyles(window.getComputedStyle(node))
+      })),
+      authoredCSS: collectAISelectedCSS(element),
       parent: element.parentElement ? {
         selector: describeAIElement(element.parentElement),
         style: pickAIComputedStyles(window.getComputedStyle(element.parentElement))
@@ -487,8 +694,49 @@
     };
   }
 
+  function collectAISelectedCSS(element, maxCharacters = 24000) {
+    const candidates = [element, ...Array.from(element.querySelectorAll('*')).slice(0, 149)];
+    let scannedRules = 0;
+    const matchesSelector = selector => {
+      const stableSelector = selector
+        .replace(/::[a-z-]+(?:\([^)]*\))?/gi, '')
+        .replace(/:(?:hover|focus|focus-visible|focus-within|active|visited|disabled|checked|target)\b/gi, '');
+      if (!stableSelector.trim()) return false;
+      try { return candidates.some(candidate => candidate.matches(stableSelector)); } catch (error) { return false; }
+    };
+    const collectRules = rules => {
+      let output = '';
+      for (const rule of Array.from(rules || [])) {
+        if (output.length >= maxCharacters || scannedRules >= 8000) break;
+        scannedRules++;
+        if (rule.selectorText && rule.style) {
+          const selectors = rule.selectorText.split(',').map(value => value.trim()).filter(Boolean);
+          if (!selectors.some(matchesSelector)) continue;
+          output += `${sanitizeAICSSForContext(rule.cssText || '')}\n`;
+          continue;
+        }
+        if (!rule.cssRules) continue;
+        const inner = collectRules(rule.cssRules);
+        if (!inner) continue;
+        const cssText = String(rule.cssText || '');
+        const opening = cssText.slice(0, cssText.indexOf('{')).trim();
+        if (opening.startsWith('@')) output += `${opening}{\n${inner}}\n`;
+      }
+      return output.slice(0, maxCharacters);
+    };
+    let css = '';
+    for (const sheet of Array.from(document.styleSheets)) {
+      if (css.length >= maxCharacters) break;
+      let rules;
+      try { rules = sheet.cssRules; } catch (error) { continue; }
+      css += collectRules(rules).slice(0, maxCharacters - css.length);
+    }
+    return css.trim();
+  }
+
   function applyAICssPreview(value) {
     const css = validateAIPreviewCSS(value);
+    clearAICssPreview();
     let style = document.getElementById(AI_PREVIEW_STYLE_ID);
     if (!style) {
       style = document.createElement('style');
@@ -497,11 +745,57 @@
       (document.head || document.documentElement).appendChild(style);
     }
     style.textContent = css;
+    forceAIPreviewPriority(style.sheet && style.sheet.cssRules);
+    applyAIPreviewInlineOverrides(style.sheet && style.sheet.cssRules);
     return css;
   }
 
+  function forceAIPreviewPriority(rules) {
+    if (!rules) return;
+    for (const rule of Array.from(rules)) {
+      if (rule.style) {
+        for (const property of Array.from(rule.style)) {
+          const value = rule.style.getPropertyValue(property);
+          rule.style.setProperty(property, value, 'important');
+        }
+      }
+      if (rule.cssRules) forceAIPreviewPriority(rule.cssRules);
+    }
+  }
+
+  function applyAIPreviewInlineOverrides(rules) {
+    let mutationCount = 0;
+    const visit = ruleList => {
+      if (!ruleList || mutationCount >= 1500) return;
+      for (const rule of Array.from(ruleList)) {
+        const type = rule.constructor?.name || '';
+        if (type === 'CSSMediaRule' && !matchMedia(rule.conditionText).matches) continue;
+        if (type === 'CSSSupportsRule' && globalThis.CSS?.supports && !CSS.supports(rule.conditionText)) continue;
+        if (rule.cssRules) visit(rule.cssRules);
+        if (!rule.selectorText || !rule.style || mutationCount >= 1500) continue;
+        if (/:/.test(rule.selectorText) && !/^\s*:root\s*$/.test(rule.selectorText)) continue;
+        let elements;
+        try { elements = document.querySelectorAll(rule.selectorText); } catch (error) { continue; }
+        for (const element of Array.from(elements).slice(0, 300)) {
+          for (const property of Array.from(rule.style)) {
+            if (mutationCount >= 1500) return;
+            aiCssPreviewMutations.push({
+              element,
+              property,
+              value: element.style.getPropertyValue(property),
+              priority: element.style.getPropertyPriority(property)
+            });
+            element.style.setProperty(property, rule.style.getPropertyValue(property), 'important');
+            mutationCount++;
+          }
+        }
+      }
+    };
+    visit(rules);
+  }
+
   function validateAIPreviewCSS(value) {
-    const css = typeof value === 'string' ? value.trim() : '';
+    const css = typeof value === 'string' ? removeAIPickerArtifacts(value).trim() : '';
     if (!css) throw new Error('No CSS patch was found in the AI response.');
     if (css.length > 60000) throw new Error('The CSS patch is too large to preview safely.');
     if (/@import|@namespace|url\s*\(|(?:-webkit-)?image-set\s*\(|expression\s*\(|javascript\s*:|behavior\s*:|-moz-binding|<\/style/gi.test(css)) {
@@ -511,8 +805,133 @@
   }
 
   function clearAICssPreview() {
+    for (let index = aiCssPreviewMutations.length - 1; index >= 0; index--) {
+      const mutation = aiCssPreviewMutations[index];
+      if (!mutation.element?.isConnected) continue;
+      if (mutation.value) mutation.element.style.setProperty(mutation.property, mutation.value, mutation.priority || '');
+      else mutation.element.style.removeProperty(mutation.property);
+    }
+    aiCssPreviewMutations = [];
     const style = document.getElementById(AI_PREVIEW_STYLE_ID);
     if (style) style.remove();
+  }
+
+  function applyAIFrontendPreview(rawBundle, rawParts = {}, rawSelectedSelector = '') {
+    const bundle = validateAIFrontendBundle(rawBundle);
+    const selectedSelector = normalizeAIPreviewSelector(rawSelectedSelector);
+    if (rawParts.js === true) throw new Error('AI-generated JavaScript is copy-only and was not executed.');
+    const parts = {
+      html: rawParts.html === true && Boolean(bundle.html),
+      css: rawParts.css === true && Boolean(bundle.css),
+      js: false
+    };
+    if (!parts.html && parts.css && aiFrontendPreview?.parts.html) {
+      clearAICssPreview();
+      applyAICssPreview(bundle.css);
+      aiFrontendPreview.parts.css = true;
+      const selectedElement = aiSelectedElement?.isConnected
+        ? captureAISelectedElement(aiSelectedElement, { previewGenerated: true })
+        : null;
+      return { parts: { ...aiFrontendPreview.parts, js: false }, mode: aiFrontendPreview.mode, selector: selectedElement?.selector || bundle.selector, selectedElement };
+    }
+    clearAIFrontendPreview();
+    const target = parts.html ? findAIFrontendTarget(bundle.selector, selectedSelector) : null;
+    const mode = target === document.body && bundle.mode === 'replace' ? 'append' : bundle.mode;
+    const preview = { target, mode, parts, insertedNodes: [], placeholder: null, appliedTarget: null };
+    aiFrontendPreview = preview;
+
+    try {
+      if (parts.html) applyAILiveHTML(target, mode, bundle.html, preview);
+      if (parts.css) applyAICssPreview(bundle.css);
+      if (preview.appliedTarget?.isConnected) aiSelectedElement = preview.appliedTarget;
+      const selectedElement = aiSelectedElement?.isConnected
+        ? captureAISelectedElement(aiSelectedElement, { previewGenerated: Boolean(parts.html) })
+        : null;
+      return { parts, mode: parts.html ? mode : 'live-page', selector: selectedElement?.selector || bundle.selector, selectedElement };
+    } catch (error) {
+      clearAIFrontendPreview();
+      throw error;
+    }
+  }
+
+  function clearAIFrontendPreview() {
+    const preview = aiFrontendPreview;
+    if (!preview) {
+      document.getElementById(AI_FRONTEND_PREVIEW_ID)?.remove();
+      clearAICssPreview();
+      return aiSelectedElement?.isConnected ? captureAISelectedElement(aiSelectedElement) : null;
+    }
+    clearAICssPreview();
+    const selectedWasGenerated = preview.insertedNodes?.some(node => node === aiSelectedElement || node.contains?.(aiSelectedElement));
+    for (const node of preview.insertedNodes || []) node.remove?.();
+    if (preview.mode === 'replace' && preview.placeholder?.isConnected) preview.placeholder.replaceWith(preview.target);
+    else preview.placeholder?.remove?.();
+    if (selectedWasGenerated && preview.target?.isConnected) aiSelectedElement = preview.target;
+    aiFrontendPreview = null;
+    return aiSelectedElement?.isConnected ? captureAISelectedElement(aiSelectedElement) : null;
+  }
+
+  function applyAILiveHTML(target, mode, value, preview) {
+    const template = document.createElement('template');
+    template.innerHTML = sanitizeAIHTML(value);
+    const nodes = Array.from(template.content.childNodes);
+    if (!nodes.some(node => node.nodeType === Node.ELEMENT_NODE)) throw new Error('The AI response did not contain an HTML element to apply.');
+    preview.insertedNodes = nodes;
+    preview.appliedTarget = nodes.find(node => node.nodeType === Node.ELEMENT_NODE) || null;
+    if (mode === 'replace') {
+      const placeholder = document.createComment('ui-checker-ai-original-position');
+      preview.placeholder = placeholder;
+      target.before(placeholder);
+      target.remove();
+      placeholder.after(...nodes);
+    } else if (mode === 'before') target.before(...nodes);
+    else if (mode === 'after') target.after(...nodes);
+    else target.append(...nodes);
+  }
+
+  function validateAIFrontendBundle(value) {
+    const source = value && typeof value === 'object' ? value : {};
+    const selector = normalizeAIPreviewSelector(source.selector || 'body').slice(0, 500) || 'body';
+    try { document.querySelector(selector); } catch (error) { throw new Error(`The preview target selector is invalid: ${selector}`); }
+    return {
+      selector,
+      mode: ['replace', 'append', 'before', 'after'].includes(source.mode) ? source.mode : 'replace',
+      title: String(source.title || '').slice(0, 120),
+      html: String(source.html || '').slice(0, 80000),
+      css: String(source.css || '').slice(0, 60000),
+      js: String(source.js || '').slice(0, 30000)
+    };
+  }
+
+  function findAIFrontendTarget(selector, selectedSelector = '') {
+    if (selectedSelector && selector === selectedSelector && aiSelectedElement?.isConnected) return aiSelectedElement;
+    let target = document.querySelector(selector || 'body');
+    if (!target && selectedSelector && aiSelectedElement?.isConnected) target = aiSelectedElement;
+    if (!target && selectedSelector) target = document.querySelector(selectedSelector);
+    if (!target) throw new Error(`No page element matches the preview target: ${selector}`);
+    if (target.closest?.(`#${AI_FRONTEND_PREVIEW_ID}`)) throw new Error('The preview cannot target itself.');
+    return target;
+  }
+
+  function sanitizeAIHTML(value) {
+    const template = document.createElement('template');
+    template.innerHTML = String(value || '');
+    template.content.querySelectorAll('script,iframe,object,embed,link,meta,base').forEach(node => node.remove());
+    template.content.querySelectorAll('*').forEach(node => {
+      node.classList.remove('ui-checker-ai-picked-hover');
+      for (const attribute of Array.from(node.attributes)) {
+        if (/^on/i.test(attribute.name) || /^(?:srcdoc|integrity|nonce)$/i.test(attribute.name) || /^(?:javascript|data):/i.test(attribute.value.trim())) node.removeAttribute(attribute.name);
+      }
+    });
+    return template.innerHTML.slice(0, 80000);
+  }
+
+  function removeAIPickerArtifacts(value) {
+    return String(value || '').replace(/\.ui-checker-ai-picked-hover\b/g, '');
+  }
+
+  function normalizeAIPreviewSelector(value) {
+    return removeAIPickerArtifacts(value).replace(/\s+/g, ' ').trim();
   }
 
   // ========================================
@@ -603,7 +1022,6 @@
         }
         elements = queryCache.get(task.searchSelector);
       } catch (error) {
-        console.warn('[UI Checker] Invalid selector:', task.searchSelector);
         continue;
       }
 
@@ -1125,8 +1543,6 @@
   }
 
   function runConsistencyCheck(components) {
-    console.log('[UI Checker] Running check with components:', components ? components.length : 0);
-
     // Clear previous highlights
     document.querySelectorAll('.ui-check-error').forEach(el => el.classList.remove('ui-check-error'));
 
@@ -1225,7 +1641,6 @@
           try {
             matchingElements = Array.from(document.querySelectorAll(searchSelector));
           } catch(e) {
-            console.warn('[UI Checker] Invalid selector:', searchSelector);
             return;
           }
 
@@ -2571,8 +2986,6 @@
   }
 
   function autoFixViolations(components) {
-    console.log('[UI Checker] Running auto-fix with components:', components ? components.length : 0);
-    
     if (!components || components.length === 0) {
       return { success: false, fixedCount: 0, fixes: [] };
     }
@@ -2609,7 +3022,6 @@
         const allMatchingElements = Array.from(document.querySelectorAll(selector));
         errorElements = allMatchingElements.filter(el => el.classList.contains('ui-check-error'));
       } catch (e) {
-        console.warn('[UI Checker] Invalid selector:', selector);
         return;
       }
 
@@ -2641,7 +3053,6 @@
       });
     });
 
-    console.log('[UI Checker] Auto-fix complete:', { fixedCount: totalFixedCount, fixes: fixes.length });
     return { success: true, fixedCount: totalFixedCount, fixes };
   }
 
@@ -2774,8 +3185,6 @@
   // ========================================
 
   function runAIAnalysis() {
-    console.log('[UI Checker] Running AI Analysis...');
-    
     const pageData = collectPageData();
     const analysis = {
       overallScore: 0,
@@ -2798,7 +3207,6 @@
     
     analysis.overallScore = calculateOverallScore(analysis);
     
-    console.log('[UI Checker] AI Analysis complete:', analysis);
     return analysis;
   }
 
@@ -3669,5 +4077,4 @@
     };
   }
 
-  console.log('[UI Checker] Content script loaded successfully');
 })();

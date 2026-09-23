@@ -94,4 +94,3 @@ catalog.components = [{
 }];
 
 fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
-console.log(`Consolidated ${validationRules.length} rules for ${documentedClasses.size} documented classes.`);

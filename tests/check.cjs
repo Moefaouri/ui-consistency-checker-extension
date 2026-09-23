@@ -52,11 +52,8 @@ const failures = [];
 function check(name, test) {
   try {
     test();
-    console.log(`PASS ${name}`);
   } catch (error) {
     failures.push({ name, error });
-    console.error(`FAIL ${name}`);
-    console.error(`     ${error.message}`);
   }
 }
 
@@ -563,8 +560,5 @@ check('validation leaves the EHS reference byte-for-byte unchanged', () => {
 });
 
 if (failures.length) {
-  console.error(`\n${failures.length} validation check(s) failed.`);
-  process.exitCode = 1;
-} else {
-  console.log(`\nAll checks passed. EHS reference remained unchanged (${referenceBefore.length} files).`);
+  throw new Error(failures.map(({ name, error }) => `${name}: ${error.message}`).join('\n'));
 }

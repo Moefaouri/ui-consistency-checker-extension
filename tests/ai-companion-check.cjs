@@ -7,6 +7,7 @@ const root = path.resolve(__dirname, '..');
 const markup = fs.readFileSync(path.join(root, 'popup.html'), 'utf8');
 const chat = fs.readFileSync(path.join(root, 'ai-chat.js'), 'utf8');
 const content = fs.readFileSync(path.join(root, 'content.js'), 'utf8');
+const contextBudgetSource = fs.readFileSync(path.join(root, 'context-budget.js'), 'utf8');
 const background = fs.readFileSync(path.join(root, 'background.js'), 'utf8');
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
 const nativeHost = fs.readFileSync(path.join(root, 'native-host', 'NativeHost.cs'), 'utf8');
@@ -177,16 +178,71 @@ test('privacy and recovery safeguards remain present', () => {
 });
 
 test('CSS preview has a one-click undo that restores the previous page style', () => {
-  assert.match(chat, /Undo preview/);
+  assert.match(chat, /`Undo \$\{part\.toUpperCase\(\)\}`/);
   assert.match(chat, /action: 'clearAICssPreview'/);
   assert.match(chat, /previous page style is restored/);
   assert.match(content, /function clearAICssPreview\(\)/);
+  assert.match(content, /forceAIPreviewPriority/);
+  assert.match(content, /applyAIPreviewInlineOverrides/);
+  assert.match(content, /element\.style\.setProperty\(property, rule\.style\.getPropertyValue\(property\), 'important'\)/);
+  assert.match(content, /mutation\.priority/);
 });
 
-let failures = 0;
+test('AI frontend answers safely apply HTML and CSS while JavaScript remains copy-only', () => {
+  assert.match(background, /semantic HTML for structure, CSS for appearance and responsive behavior, and vanilla JavaScript for interaction/);
+  assert.match(background, /machine-readable fenced preview block/);
+  assert.match(chat, /function extractFrontendBundle\(text\)/);
+  assert.match(chat, /availableParts = \['html', 'css'\]/);
+  assert.match(chat, /`Apply \$\{part\.toUpperCase\(\)\}`/);
+  assert.match(chat, /Copy JS/);
+  assert.doesNotMatch(chat, /Run JS|Apply JS/);
+  assert.match(chat, /Apply all/);
+  assert.match(chat, /Undo all/);
+  assert.match(chat, /action: 'previewAIFrontend'/);
+  assert.match(chat, /action: 'clearAIFrontendPreview'/);
+  assert.match(content, /function applyAILiveHTML/);
+  assert.match(content, /AI-generated JavaScript is copy-only and was not executed/);
+  assert.doesNotMatch(content, /function applyAILiveScript|function buildAILiveScript|AI_FRONTEND_SCRIPT_ID/);
+  assert.match(content, /function sanitizeAIHTML/);
+  assert.match(content, /function normalizeAIPreviewSelector/);
+  assert.match(content, /aiSelectedElement\?\.isConnected/);
+  assert.match(content, /function collectAISelectedCSS/);
+  assert.match(contextBudgetSource, /authoredCSS: element\.authoredCSS/);
+  assert.match(contextBudgetSource, /descendantStyles:/);
+  assert.match(content, /function captureAIThemeProfile/);
+  assert.match(contextBudgetSource, /theme: cleanTheme\(raw\.theme\)/);
+  assert.match(chat, /selectedReferenceTerms/);
+  assert.doesNotMatch(content, /createElement\('iframe'\)/);
+  assert.doesNotMatch(content.slice(content.indexOf('function describeAIElement'), content.indexOf('function sanitizeAIIdentifier')), /!name\.startsWith\('ui-check-'\)/);
+});
+
+test('Check tab emulates content viewports and highlights responsive risks without resizing the window', () => {
+  assert.match(markup, /id="responsivePlaygroundTitle"/);
+  assert.match(markup, /data-responsive-width="390"/);
+  assert.match(markup, /data-responsive-width="820"/);
+  assert.match(markup, /data-responsive-width="1440"/);
+  assert.match(markup, /id="responsiveCustomApply"/);
+  assert.match(markup, /id="responsiveIssues"/);
+  assert.match(chat + content, /getViewportSize/);
+  const popup = fs.readFileSync(path.join(root, 'popup.js'), 'utf8');
+  const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
+  assert.ok(manifest.permissions.includes('debugger'));
+  assert.match(popup, /function applyResponsiveViewport\(button, custom = false\)/);
+  assert.match(popup, /action: 'responsiveEmulate'/);
+  assert.doesNotMatch(popup, /permissions\.request\([\s\S]*debugger/);
+  assert.match(popup, /await runCheckV14\(\)/);
+  assert.match(background, /Emulation\.setDeviceMetricsOverride/);
+  assert.match(background, /Emulation\.clearDeviceMetricsOverride/);
+  assert.match(content, /function auditResponsiveLayout\(\)/);
+  assert.match(content, /viewport-overflow/);
+  assert.match(content, /small-target/);
+  assert.match(content, /function focusResponsiveIssue/);
+  assert.match(content, /mediaSignature = `\$\{window\.innerWidth\}x\$\{window\.innerHeight\}/);
+});
+
+const failures = [];
 for (const entry of tests) {
-  try { entry.fn(); console.log(`PASS ${entry.name}`); }
-  catch (error) { failures++; console.error(`FAIL ${entry.name}\n     ${error.message}`); }
+  try { entry.fn(); }
+  catch (error) { failures.push(`${entry.name}: ${error.message}`); }
 }
-if (failures) { console.error(`\n${failures} AI companion check(s) failed.`); process.exitCode = 1; }
-else console.log(`\nAll ${tests.length} AI companion checks passed.`);
+if (failures.length) throw new Error(failures.join('\n'));

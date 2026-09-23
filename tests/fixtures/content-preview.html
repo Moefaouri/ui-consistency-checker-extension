@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Content preview smoke fixture</title>
+  <style>
+    body.dark-theme { --fixture-primary: #00538e; color: rgb(225, 226, 232); background: rgb(21, 24, 29); }
+    .demo-example { color: green; width: 75px; }
+  </style>
+  <script>
+    globalThis.__contentListeners = [];
+    globalThis.__selectedPayload = null;
+    globalThis.chrome = {
+      runtime: {
+        lastError: null,
+        onMessage: { addListener(listener) { globalThis.__contentListeners.push(listener); } },
+        sendMessage(message) {
+          if (message?.action === 'aiElementSelected') globalThis.__selectedPayload = message.element;
+          return Promise.resolve({ success: true });
+        }
+      }
+    };
+  </script>
+</head>
+<body class="dark-theme" data-theme="dark">
+  <section id="stepper">
+    <div class="demo-example" style="display:block;color:blue!important;width:50px!important">Original stepper</div>
+  </section>
+  <script src="../../content.js"></script>
+  <script>
+    globalThis.runContentPreviewSmoke = async function () {
+      const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+      const listener = globalThis.__contentListeners.at(-1);
+      const send = request => new Promise(resolve => listener(request, {}, resolve));
+      const probe = document.querySelector('.demo-example');
+
+      await send({ action: 'startAIElementPicker' });
+      probe.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 20, clientY: 20 }));
+      probe.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: 20, clientY: 20 }));
+      await wait(10);
+      const selection = globalThis.__selectedPayload;
+
+      const original = { color: getComputedStyle(probe).color, width: getComputedStyle(probe).width };
+      const cssApply = await send({ action: 'previewAICss', css: '.demo-example.ui-checker-ai-picked-hover { color: rgb(255, 0, 0); width: 200px; }' });
+      const applied = { color: getComputedStyle(probe).color, width: getComputedStyle(probe).width };
+      await send({ action: 'clearAICssPreview' });
+      const restored = { color: getComputedStyle(probe).color, width: getComputedStyle(probe).width };
+
+      const staleSelector = `${selection.selector}.ui-checker-ai-picked-hover`;
+      const htmlApply = await send({
+        action: 'previewAIFrontend',
+        bundle: {
+          selector: staleSelector,
+          mode: 'replace',
+          title: 'Live replacement',
+          html: '<div class="demo-example"><button class="primary-action">Primary action</button></div>',
+          css: '.primary-action{color:rgb(255,0,0);min-height:44px}'
+        },
+        parts: { html: true, css: true },
+        selectedSelector: selection.selector
+      });
+      const replacement = document.querySelector('#stepper > .demo-example');
+      const htmlApplied = {
+        success: htmlApply.success,
+        selectedPreviewGenerated: htmlApply.selectedElement?.previewGenerated,
+        isLiveNode: replacement !== probe && replacement?.parentElement?.id === 'stepper',
+        button: replacement?.querySelector('.primary-action')?.textContent,
+        color: replacement ? getComputedStyle(replacement.querySelector('.primary-action')).color : '',
+        iframe: Boolean(document.getElementById('ui-checker-ai-frontend-preview'))
+      };
+      const cssFollowup = await send({
+        action: 'previewAIFrontend',
+        bundle: {
+          selector: '#stale-generated-button-selector',
+          mode: 'replace',
+          title: 'Style generated button',
+          css: '.primary-action{color:rgb(0,0,255);border-radius:12px}'
+        },
+        parts: { css: true },
+        selectedSelector: htmlApply.selectedElement?.selector || selection.selector
+      });
+      const followupButton = document.querySelector('.primary-action');
+      const followupApplied = {
+        success: cssFollowup.success,
+        htmlPreserved: Boolean(followupButton),
+        color: followupButton ? getComputedStyle(followupButton).color : '',
+        radius: followupButton ? getComputedStyle(followupButton).borderRadius : ''
+      };
+      await send({ action: 'clearAIFrontendPreview' });
+      const htmlRestored = { sameNode: document.querySelector('#stepper > .demo-example') === probe, text: probe.textContent.trim() };
+      const blockedJs = await send({ action: 'previewAIFrontend', bundle: { selector: selection.selector, mode: 'replace', js: 'document.body.dataset.executed = "yes"' }, parts: { js: true }, selectedSelector: selection.selector });
+      const context = await send({ action: 'captureAIContext', options: { profile: 'focused' } });
+      const responsiveProbe = document.createElement('div');
+      responsiveProbe.className = 'responsive-overflow-probe';
+      responsiveProbe.style.width = '2000px';
+      responsiveProbe.textContent = 'Overflow probe';
+      const tinyButton = document.createElement('button');
+      tinyButton.className = 'responsive-tiny-button';
+      tinyButton.style.cssText = 'width:12px;height:12px;padding:0';
+      tinyButton.textContent = 'x';
+      const scrollContainer = document.createElement('div');
+      scrollContainer.className = 'responsive-scroll-container';
+      scrollContainer.style.cssText = 'width:180px;overflow-x:auto';
+      const scrollContent = document.createElement('div');
+      scrollContent.className = 'responsive-scroll-content';
+      scrollContent.style.width = '1200px';
+      scrollContent.textContent = 'Intentionally scrollable content';
+      scrollContainer.appendChild(scrollContent);
+      const offscreenOverflow = document.createElement('div');
+      offscreenOverflow.className = 'responsive-offscreen-overflow';
+      offscreenOverflow.style.cssText = 'position:absolute;top:5000px;width:1800px';
+      document.body.append(responsiveProbe, tinyButton, scrollContainer, offscreenOverflow);
+      const responsiveAudit = await send({ action: 'auditResponsiveLayout' });
+      const responsiveMarkers = document.querySelectorAll('[data-responsive-issue]').length;
+      const responsiveTypes = responsiveAudit.issues?.map(issue => issue.type).join(' ') || '';
+      const responsiveSelectors = responsiveAudit.issues?.map(issue => issue.selector).join(' ') || '';
+      await send({ action: 'clearResponsiveAudit' });
+      const responsiveCleared = !document.getElementById('ui-checker-responsive-audit');
+      responsiveProbe.remove();
+      tinyButton.remove();
+      scrollContainer.remove();
+      offscreenOverflow.remove();
+
+      return {
+        selection,
+        pickerClassPresent: probe.classList.contains('ui-checker-ai-picked-hover'),
+        original,
+        cssApply,
+        applied,
+        restored,
+        htmlApplied,
+        followupApplied,
+        htmlRestored,
+        blockedJs,
+        jsExecuted: document.body.dataset.executed === 'yes',
+        bodyTheme: context.context?.theme?.body,
+        bodyToken: context.context?.designTokens?.['--fixture-primary'],
+        responsiveAudit: {
+          success: responsiveAudit.success,
+          total: responsiveAudit.total,
+          types: responsiveTypes,
+          ignoredScrollableAndOffscreen: !/responsive-scroll|responsive-offscreen/.test(responsiveSelectors),
+          markers: responsiveMarkers,
+          cleared: responsiveCleared
+        }
+      };
+    };
+  </script>
+</body>
+</html>

@@ -60,7 +60,6 @@ try {
     .replaceAll('&lt;', '<')
     .replaceAll('&gt;', '>');
   const result = JSON.parse(decoded);
-  console.log(JSON.stringify({ passed: result.passed, failed: result.failed, issues: result.issues }, null, 2));
   assert.equal(result.failed, 0, `Expected zero failures, received ${result.failed}.`);
 } finally {
   fs.rmSync(harnessPath, { force: true });

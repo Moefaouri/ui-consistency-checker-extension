@@ -22,6 +22,12 @@
       --warning: #f59e0b;
       --error: #ef4444;
       --info: rgb(139 208 239);
+      --cat-red-bg: #fff1f2;
+      --cat-red-border: #e11d48;
+      --cat-red-text: #9f1239;
+      --cat-yellow-bg: #fefce8;
+      --cat-yellow-border: #ca8a04;
+      --cat-yellow-text: #854d0e;
 
       /* Dark Theme (Default) */
       --bg: #15181d;
@@ -294,6 +300,236 @@
       border: none;
       color: white;
     }
+
+    .responsive-playground {
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--surface);
+    }
+
+    .responsive-playground-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .responsive-playground-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .responsive-playground-title i { color: var(--secondary); }
+
+    .responsive-playground-head small {
+      color: var(--text-muted);
+      font-size: 8px;
+    }
+
+    .responsive-presets {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 5px;
+    }
+
+    .responsive-preset {
+      min-width: 0;
+      padding: 7px 4px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      color: var(--text-muted);
+      background: var(--surface-light);
+      font: inherit;
+      font-size: 9px;
+      cursor: pointer;
+    }
+
+    .responsive-preset:hover,
+    .responsive-preset.active {
+      color: white;
+      border-color: var(--primary);
+      background: var(--primary);
+    }
+
+    .responsive-preset:disabled { opacity: .5; cursor: wait; }
+
+    .responsive-status {
+      min-height: 13px;
+      margin: 7px 1px 0;
+      color: var(--text-muted);
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    .responsive-status.error { color: var(--error); }
+
+    .responsive-custom {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 5px;
+      margin-top: 7px;
+    }
+
+    .responsive-custom input {
+      width: 100%;
+      min-width: 0;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      background: var(--surface-light);
+      font: inherit;
+      font-size: 10px;
+    }
+
+    .responsive-custom span { color: var(--text-muted); font-size: 10px; }
+
+    .responsive-tool-btn {
+      padding: 6px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: white;
+      background: var(--primary);
+      font: inherit;
+      font-size: 9px;
+      cursor: pointer;
+    }
+
+    .responsive-audit-summary {
+      display: block;
+      margin-top: 7px;
+    }
+
+    .responsive-audit-summary[hidden],
+    .responsive-issues[hidden] { display: none; }
+
+    .responsive-audit-stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .responsive-audit-stat {
+      min-width: 0;
+      padding: 12px 8px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      background: var(--surface);
+      text-align: center;
+    }
+
+    .responsive-audit-stat strong {
+      display: block;
+      font-size: 23px;
+      font-weight: 800;
+      line-height: 1.1;
+    }
+
+    .responsive-audit-stat span {
+      display: block;
+      margin-top: 4px;
+      color: var(--text-muted);
+      font-size: 9px;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+
+    .responsive-audit-stat.error strong { color: var(--error); }
+    .responsive-audit-stat.warning strong { color: var(--warning); }
+
+    .responsive-audit-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 5px;
+    }
+
+    .responsive-audit-actions .responsive-tool-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      min-height: 40px;
+      padding: 9px 12px;
+      background: var(--surface-light);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .responsive-audit-actions .responsive-tool-btn:hover {
+      border-color: var(--primary);
+      background: var(--surface-light);
+      color: var(--text);
+    }
+
+    .responsive-audit-actions .responsive-tool-btn i {
+      color: var(--primary-light);
+      font-size: 13px;
+    }
+
+    .responsive-issues {
+      display: grid;
+      gap: 8px;
+      max-height: 190px;
+      margin: 7px 0 0;
+      padding: 0;
+      overflow: auto;
+      list-style: none;
+    }
+
+    .responsive-audit-success {
+      padding: 18px 12px;
+      color: var(--success);
+      text-align: center;
+    }
+
+    .responsive-audit-success[hidden] { display: none; }
+    .responsive-audit-success .material-icons { display: block; font-size: 34px; }
+    .responsive-audit-success p { margin-top: 7px; font-size: 11px; font-weight: 600; }
+
+    .responsive-issues .responsive-issue {
+      appearance: none;
+      width: 100%;
+      margin: 0;
+      border: 0;
+      border-radius: 0;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .responsive-issue:hover { background: rgba(255,255,255,.035); }
+    body[data-theme="light"] .responsive-issue:hover { background: rgba(255,255,255,.64); }
+
+    .responsive-issue.fail .result-icon { background: var(--cat-red-bg); color: var(--cat-red-text); }
+    .responsive-issue.warning .result-icon { background: var(--cat-yellow-bg); color: var(--cat-yellow-text); }
+    .responsive-issue-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 3px; }
+    .responsive-issue-heading .result-title { margin-bottom: 0; }
+    .responsive-severity {
+      flex: 0 0 auto;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 8px;
+      font-weight: 800;
+      letter-spacing: .35px;
+      line-height: 1.4;
+      text-transform: uppercase;
+    }
+
+    .responsive-issue.fail .responsive-severity { color: var(--cat-red-text); background: var(--cat-red-bg); border: 0; }
+    .responsive-issue.warning .responsive-severity { color: var(--cat-yellow-text); background: var(--cat-yellow-bg); border: 0; }
+    .responsive-issue .responsive-target { margin-bottom: 4px; color: var(--text-muted); font-family: monospace; }
 
     /* ========================================
        RUN CHECK NOTICE
@@ -2235,8 +2471,9 @@
     .ai-message.assistant .ai-message-content h3 { color: var(--text); }
     .ai-message.error .ai-message-bubble { border-color: color-mix(in srgb, var(--error) 50%, transparent); }
     .ai-message-meta { display: flex; justify-content: space-between; gap: 10px; margin-top: 6px; color: color-mix(in srgb, var(--text) 72%, transparent); font-size: 8px; }
-    .ai-message-actions { display: flex; gap: 2px; margin-top: 7px; }
+    .ai-message-actions { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 7px; }
     .ai-message-action { padding: 3px 6px; border: 0; border-radius: 4px; color: var(--text); background: transparent; font: inherit; font-size: 9px; cursor: pointer; }
+    .ai-message-action.active { color: white; background: var(--primary); }
     .ai-message-action:disabled { opacity: .4; cursor: not-allowed; }
     .ai-message-action:hover { color: var(--text); background: var(--surface-light); }
     .ai-message-bubble p { margin: 0 0 8px; } .ai-message-bubble p:last-child { margin-bottom: 0; }
@@ -2428,6 +2665,44 @@
         Auto-Fix
       </button>
     </div>
+
+    <section class="responsive-playground" aria-labelledby="responsivePlaygroundTitle">
+      <div class="responsive-playground-head">
+        <div class="responsive-playground-title" id="responsivePlaygroundTitle">
+          <i class="fa-solid fa-display" aria-hidden="true"></i>
+          Responsive check
+        </div>
+        <small>Content viewport</small>
+      </div>
+      <div class="responsive-presets" aria-label="Responsive viewport presets">
+        <button class="responsive-preset" type="button" data-responsive-width="390" data-responsive-height="844">Mobile</button>
+        <button class="responsive-preset" type="button" data-responsive-width="820" data-responsive-height="1180">Tablet</button>
+        <button class="responsive-preset" type="button" data-responsive-width="1440" data-responsive-height="900">Desktop</button>
+        <button class="responsive-preset" type="button" data-responsive-restore="true">Restore</button>
+      </div>
+      <div class="responsive-custom" aria-label="Custom responsive viewport">
+        <input id="responsiveCustomWidth" type="number" min="240" max="3840" value="390" aria-label="Custom viewport width">
+        <span aria-hidden="true">×</span>
+        <input id="responsiveCustomHeight" type="number" min="320" max="4320" value="844" aria-label="Custom viewport height">
+        <button class="responsive-tool-btn" id="responsiveCustomApply" type="button">Test</button>
+      </div>
+      <p class="responsive-status" id="responsiveStatus">Choose a size to emulate only the page content. The browser window will not be resized.</p>
+      <div class="responsive-audit-summary" id="responsiveAuditSummary" hidden>
+        <div class="responsive-audit-stats">
+          <div class="responsive-audit-stat error"><strong id="responsiveErrorCount">0</strong><span>Errors</span></div>
+          <div class="responsive-audit-stat warning"><strong id="responsiveWarningCount">0</strong><span>Warnings</span></div>
+        </div>
+        <div class="responsive-audit-success" id="responsiveAuditSuccess" hidden>
+          <span class="material-icons">check_circle</span>
+          <p>No responsive issues found!</p>
+        </div>
+        <div class="responsive-audit-actions">
+          <button class="responsive-tool-btn" id="responsiveRescanBtn" type="button"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span>Re-scan</span></button>
+          <button class="responsive-tool-btn" id="responsiveClearBtn" type="button"><i class="fa-solid fa-eraser" aria-hidden="true"></i><span>Clear</span></button>
+        </div>
+      </div>
+      <ol class="responsive-issues" id="responsiveIssues" hidden aria-label="Responsive issues"></ol>
+    </section>
 
     <!-- Run Check Notice -->
     <div class="run-check-notice" id="runCheckNotice">

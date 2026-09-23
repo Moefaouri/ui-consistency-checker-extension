@@ -95,7 +95,35 @@
 
   function cleanSelectedElement(element) {
     if (!element || typeof element !== 'object') return undefined;
-    return { ...cleanElement(element), html: element.html ? redactSensitiveText(element.html, 6000) : undefined };
+    return {
+      ...cleanElement(element),
+      previewGenerated: element.previewGenerated === true,
+      html: element.html ? redactSensitiveText(element.html, 10000) : undefined,
+      authoredCSS: element.authoredCSS ? redactSensitiveText(element.authoredCSS, 24000).replace(/url\([^)]*\)/gi, 'url([removed])') : undefined,
+      descendantStyles: Array.isArray(element.descendantStyles) ? element.descendantStyles.slice(0, 30).map(cleanElement) : undefined
+    };
+  }
+
+  function cleanTheme(theme) {
+    if (!theme || typeof theme !== 'object') return undefined;
+    const cleanNode = node => node && typeof node === 'object' ? {
+      classes: Array.isArray(node.classes) ? node.classes.slice(0, 20).map(value => redactSensitiveText(value, 80)) : undefined,
+      dataTheme: node.dataTheme ? redactSensitiveText(node.dataTheme, 80) : undefined,
+      style: cleanElement({ style: node.style }).style
+    } : undefined;
+    const samples = {};
+    for (const [name, sample] of Object.entries(theme.samples || {}).slice(0, 8)) {
+      samples[String(name).slice(0, 40)] = {
+        selector: String(sample?.selector || '').slice(0, 260),
+        style: cleanElement({ style: sample?.style }).style
+      };
+    }
+    return {
+      preferredScheme: redactSensitiveText(theme.preferredScheme || '', 20),
+      root: cleanNode(theme.root),
+      body: cleanNode(theme.body),
+      samples
+    };
   }
 
   function relevantCss(css, words, selectors, maxChars) {
@@ -142,6 +170,7 @@
       privacy: raw.privacy || {},
       selectedElement: cleanSelectedElement(options.selectedElement || raw.selectedElement),
       designTokens: Object.fromEntries(Object.entries(raw.designTokens || {}).slice(0, 100).map(([key, value]) => [String(key).slice(0, 100), redactSensitiveText(value, 180)])),
+      theme: cleanTheme(raw.theme),
       elements: [],
       relevantCSS: ''
     };
@@ -189,8 +218,11 @@
         context.selectedElement = {
           selector: String(context.selectedElement.selector || '').slice(0, 260),
           tag: String(context.selectedElement.tag || '').slice(0, 30),
+          previewGenerated: context.selectedElement.previewGenerated === true,
           text: String(context.selectedElement.text || '').slice(0, 800),
           html: String(context.selectedElement.html || '').slice(0, 2400),
+          authoredCSS: String(context.selectedElement.authoredCSS || '').slice(0, 6000),
+          descendantStyles: Array.isArray(context.selectedElement.descendantStyles) ? context.selectedElement.descendantStyles.slice(0, 12) : undefined,
           box: context.selectedElement.box,
           style: context.selectedElement.style,
           semantics: context.selectedElement.semantics
@@ -204,6 +236,8 @@
       if (context.selectedElement) {
         delete context.selectedElement.html;
         delete context.selectedElement.style;
+        delete context.selectedElement.authoredCSS;
+        delete context.selectedElement.descendantStyles;
       }
       serialized = JSON.stringify(context);
     }

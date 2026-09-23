@@ -21,4 +21,3 @@ catalog.components = catalog.components.map(component => {
 });
 
 fs.writeFileSync(catalogPath, `${JSON.stringify(catalog, null, 2)}\n`);
-console.log(`Migrated ${catalog.components.length} components to the CSS-only schema.`);
